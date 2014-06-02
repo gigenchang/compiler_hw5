@@ -11,7 +11,8 @@ void gen_code(AST_NODE *proj)
 	AST_Node *nodePtr;
 	nodePtr = proj->child;
 	output = fopen("output.s", "w");
-	
+
+	//TODO: 下面兩行可以刪掉	
 	if(nodePtr == NULL)
 		return;
 	fprintf(output, ".data"\n);
@@ -165,4 +166,65 @@ void gen_global_decl(AST_NODE *nodePtr)
 		printf("Should be VARIABLE_DECL type\n");
 }
 
+void gen_prologue(char* func_name) {
+	fprintf(output, "# prologue sequence\n");
+	fprintf(output, "sw  $ra, 0($sp)\n");    //存return address
+	fprintf(output, "sw  $fp, -4($sp)\n");   //存現在的fp
+	fprintf(output, "add $fp, $sp, -4\n");   //改fp
+	fprintf(output, "add $sp, $sp, -8\n");   //改sp
+	fprintf(output, "lw  $v0, _framesize_of_%s\n", name);
+	fprintf(output, "sub $sp, $sp, $v0\n");  //移動sp,騰出空間用作push
+	fprintf(output, "sw  $8,  64($sp)\n");   //$t0   
+	fprintf(output, "sw  $9,  60($sp)\n"); 
+	fprintf(output, "sw  $10, 56($sp)\n"); 
+	fprintf(output, "sw  $11, 52($sp)\n"); 
+	fprintf(output, "sw  $12, 48($sp)\n"); 
+	fprintf(output, "sw  $13, 44($sp)\n"); 
+	fprintf(output, "sw  $14, 40($sp)\n"); 
+	fprintf(output, "sw  $15, 36($sp)\n");   //$t7
+	fprintf(output, "sw  $24, 32($sp)\n");   //$t8
+	fprintf(output, "sw  $25, 28($sp)\n");   //$t9
 
+	//使用f4,6,8,10,16,18作為float temporary reg, 原因見http://www.cs.iit.edu/~virgil/cs470/Labs/Lab4.pdf
+	//假設此次作業全部使用single float, 因此使用s.s
+	fprintf(output, "s.s  $25, 24($sp)\n");   //$f4
+	fprintf(output, "s.s  $25, 20($sp)\n");   //$f6
+	fprintf(output, "s.s  $25, 16($sp)\n");   //$f8
+	fprintf(output, "s.s  $25, 12($sp)\n");   //$f10
+	fprintf(output, "s.s  $25, 8($sp)\n");   //$f16
+	fprintf(output, "s.s  $25, 4($sp)\n");   //$f18
+}
+
+
+void gen_epilogue(char* name) {
+	fprintf(output, "# epilogue sequence\n");
+	fprintf(output, "_end_%s:\n", name);
+	fprintf(output, "lw  $8,  64($sp)\n");   //$t0   
+	fprintf(output, "lw  $9,  60($sp)\n"); 
+	fprintf(output, "lw  $10, 56($sp)\n"); 
+	fprintf(output, "lw  $11, 52($sp)\n"); 
+	fprintf(output, "lw  $12, 48($sp)\n"); 
+	fprintf(output, "lw  $13, 44($sp)\n"); 
+	fprintf(output, "lw  $14, 40($sp)\n"); 
+	fprintf(output, "lw  $15, 36($sp)\n");   //$t7
+	fprintf(output, "lw  $24, 32($sp)\n");   //$t8
+	fprintf(output, "lw  $25, 28($sp)\n");   //$t9
+
+	fprintf(output, "l.s  $25, 24($sp)\n");   //$f4
+	fprintf(output, "l.s  $25, 20($sp)\n");   //$f6
+	fprintf(output, "l.s  $25, 16($sp)\n");   //$f8
+	fprintf(output, "l.s  $25, 12($sp)\n");   //$f10
+	fprintf(output, "l.s  $25, 8($sp)\n");   //$f16
+	fprintf(output, "l.s  $25, 4($sp)\n");   //$f18
+	
+	fprintf(output, "lw   $ra, 4($fp)\n");   //load return address
+	fprintf(output, "add  $sp, $fp, 4\n");   //讓sp pop掉執行完的frame(也就是回到$fp+4)
+	fprintf(output, "lw   $fp, 0($fp)\n");   //load return pointer
+
+	if (strcmp (name, "main") == 0) { 
+		fprintf(output, "li  $v0, 10\n");    //system call code 10 means exit
+		fprintf(output, "syscall\n"); 
+	} else { 
+		fprintf(output, "jr  $ra\n"); 
+	}
+}
