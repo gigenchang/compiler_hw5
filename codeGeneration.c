@@ -6,6 +6,46 @@ char *function_name;
 FILE *output;
 
 
+int reg[32] = {0};
+int freg[32] = {0};
+
+int get_reg()
+{
+	int i;
+	for (i = 8; i<=25 ; i++) {
+		if (reg[i] == 0) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+
+int get_freg()
+{
+	int i;
+	for (i = 4; i<=30 ; i+=2) {
+		if (i == 12 || i == 14) {
+			break;  // $f12, $14 preserved for parameter passing
+		} else {
+			if (freg[i] == 0) {
+				return i;
+			}
+		}
+	}
+	return -1;
+}
+
+void free_reg(int free_id)
+{
+	reg[free_id] = 0;
+}
+
+void free_freg(int free_id)
+{
+	freg[free_id] = 0;
+}
+
 void gen_code(AST_NODE *proj)
 {
 	AST_Node *nodePtr;
