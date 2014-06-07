@@ -8,6 +8,26 @@ extern FILE *output;
 //TODO ARRAY ref offset問題
 //TODO visit_expr
 
+
+int float_compare_label_no = 0;
+int int_compare_label_no = 0;
+const char FLOAT_COMPARE_LABEL[] = "Float_Compare_Label_";
+const char INT_COMPARE_LABEL[] = "Int_Compare_Label_";
+
+
+int get_float_compare_label_no()
+{
+	float_compare_label_no += 1;
+	return float_compare_label_no;
+}
+
+int get_int_compare_label_no()
+{
+	int_compare_label_no += 1;
+	return int_compare_label_no;
+}
+
+
 void gen_write_call(AST_NODE* expr)
 {
 	int type = //想辦法get type;
@@ -74,7 +94,7 @@ int visit_const(AST_NODE* const_value)
 			int reg_id = get_freg();
 			if (reg_id != -1) {
 				const_value->place = reg_id;
-				fprintf(output, "li  $f%d, %f\n", reg_id, val->const_u.fval);
+				fprintf(output, "li.s  $f%d, %f\n", reg_id, val->const_u.fval);
 			}
 			break;
 		case STRINGC:
@@ -89,7 +109,7 @@ void visit_var_ref(AST_NODE* id_node)
 {
 	//var可能是global或local
 	char* var_name = id_node->semantic_value.identifierSemanticValue->identifierName;
-	SymbolTableEntry* entry = retrieveSymbol(var_name);
+	SymbolTableEntry* entry = id_node->semantic_value.identifierSemanticValue.symbolTableEntry;
 	int is_global = (entry->nestingLevel == 0);
 
 	switch(id_node->semantic_value.identifierSemanticValue.kind){
@@ -154,15 +174,340 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 	}
 }
 
-
-
-
 void gen_assign_stmt(AST_NODE* assign_stmt_node)
 {
 	AST_NODE* left_node = assign_stmt_node->child;
 	AST_NODE* right_node = left_node->rightSibling;
 	gen_expr(right_node);
+	//最後記得要free掉右邊的reg
 }
+
+void visit_expr(AST_NODE* expr_node)
+{
+	if (expr_node->dataType == INT_TYPE){
+		switch(expr_node->semantic_value.exprSemanticValue.kind){
+			case(BINARY_OPERATION):
+				{
+					AST_NODE* left_child = expr_node->child;
+					AST_NODE* right_child = left_child->rightSibling;
+					gen_expr(left_child);
+					gen_expr(right_child);
+
+					int reg_id = get_reg();
+					if (reg_id != -1){
+						expr_node->place = reg_id;
+					
+						switch(expr_node->semantic_value.exprSemanticValue.op.binaryOp){
+							case(BINARY_OP_ADD):
+								fprintf(output, "add  $%d, $%d, $%d\n", reg_id, left_child->place, right_child->place);
+								break;
+							case(BINARY_OP_SUB):
+								fprintf(output, "sub  $%d, $%d, $%d\n", reg_id, left_child->place, right_child->place);
+								break;
+							case(BINARY_OP_MUL):
+								fprintf(output, "mul  $%d, $%d, $%d\n", reg_id, left_child->place, right_child->place);
+								break;
+							case(BINARY_OP_DIV):
+								fprintf(output, "div  $%d, $%d, $%d\n", reg_id, left_child->place, right_child->place);
+								break;
+							case(BINARY_OP_EQ):
+								fprintf(output, "seq  $%d, $%d, $%d\n", reg_id, left_child->place, right_child->place);
+								break;
+							case(BINARY_OP_GE):
+								fprintf(output, "sge  $%d, $%d, $%d\n", reg_id, left_child->place, right_child->place);
+								break;
+							case(BINARY_OP_LE):
+								fprintf(output, "sle  $%d, $%d, $%d\n", reg_id, left_child->place, right_child->place);
+								break;
+							case(BINARY_OP_NE):
+								fprintf(output, "sne  $%d, $%d, $%d\n", reg_id, left_child->place, right_child->place);
+								break;
+							case(BINARY_OP_GT):
+								fprintf(output, "sgt  $%d, $%d, $%d\n", reg_id, left_child->place, right_child->place);
+								break;
+							case(BINARY_OP_LT):
+								fprintf(output, "slt  $%d, $%d, $%d\n", reg_id, left_child->place, right_child->place);
+								break;
+							case(BINARY_OP_AND):
+								{
+									//如果左邊或右邊其中一個 == 0. 那就是0, 反之為1
+									int label_no = get_int_compare_label_no();
+									fprintf(output, "li  $%d, 0\n", reg_id, left_child->place);
+									fprintf(output, "beqz $%d, %s%d\n", left_child->place, INT_COMPARE_LABEL, label_no);
+									fprintf(output, "beqz $%d, %s%d\n", right_child->place, INT_COMPARE_LABEL, label_no);
+									fprintf(output, "li  $%d, 1\n", reg_id);
+									fprintf(output, "%s%d:\n", INT_COMPARE_LABEL, label_no);
+									break;
+								}
+							case(BINARY_OP_OR):
+								{
+									//如果左邊或右邊其中一個 != 0. 那就是1, 反之為0
+									int label_no = get_int_compare_label_no();
+									fprintf(output, "li  $%d, 1\n", reg_id, left_child->place);
+									fprintf(output, "bnez $%d, %s%d\n", left_child->place, INT_COMPARE_LABEL, label_no);
+									fprintf(output, "bnez $%d, %s%d\n", right_child->place, INT_COMPARE_LABEL, label_no);
+									fprintf(output, "li  $%d, 0\n", reg_id);
+									fprintf(output, "%s%d:\n", INT_COMPARE_LABEL, label_no);
+									break;
+								}
+								break;
+							default:
+								printf("visit_expr出現無法判斷的binary operator\n");
+						}
+					}
+					free_reg(left_child->place);
+					free_reg(right_child->place);
+					break;
+				}
+			case(UNARY_OPERATION):
+				{
+					AST_NODE* child = expr_node->child;
+					gen_expr(child);
+
+					int reg_id = get_reg();
+					if (reg_id != -1){
+						expr_node->place = reg_id;
+					
+						switch(expr_node->semantic_value.exprSemanticValue.op.unaryOp){
+							case(UNARY_OP_POSITIVE):
+								fprintf(output, "move  $%d, $%d\n", reg_id, child->place);
+								break;
+							case(UNARY_OP_NEGATIVE):
+								fprintf(output, "neg  $%d, $%d\n", reg_id, child->place);
+								break;
+							case(UNARY_OP_LOGICAL_NEGATION):
+								//如果  是0就變成1
+								//    不是0就變成0
+								fprintf(output, "seq  $%d, 0\n", reg_id, child->place);
+								break;
+							default:
+								printf("visit_expr出現無法判斷的unary operator\n");
+						}
+					}
+					free_reg(child->place);
+					break;
+				}
+			default:
+				printf("visit_expr出現無法判斷是 BINARY 或 UNIARY 的operation\n");
+		}
+	} else if (expr_node->dataType == FLOAT_TYPE){
+		switch(expr_node->semantic_value.exprSemanticValue.kind){
+			case(BINARY_OPERATION):
+				{
+					AST_NODE* left_child = expr_node->child;
+					AST_NODE* right_child = left_child->rightSibling;
+					gen_expr(left_child);
+					gen_expr(right_child);
+
+					int reg_id = get_freg();
+					if (reg_id != -1){
+						expr_node->place = reg_id;
+					
+						switch(expr_node->semantic_value.exprSemanticValue.op.binaryOp){
+							case(BINARY_OP_ADD):
+								fprintf(output, "add.s  $f%d, $f%d, $f%d\n", reg_id, left_child->place, right_child->place);
+								break;
+							case(BINARY_OP_SUB):
+								fprintf(output, "sub.s  $f%d, $f%d, $f%d\n", reg_id, left_child->place, right_child->place);
+								break;
+							case(BINARY_OP_MUL):
+								fprintf(output, "mul.s  $f%d, $f%d, $f%d\n", reg_id, left_child->place, right_child->place);
+								break;
+							case(BINARY_OP_DIV):
+								fprintf(output, "div.s  $f%d, $f%d, $f%d\n", reg_id, left_child->place, right_child->place);
+								break;
+							case(BINARY_OP_EQ):
+								{
+									free_freg(reg_id); //把float reg還回去
+									reg_id = get_reg(); //重新要一個一般的reg
+
+									if (reg_id != -1){
+										expr_node->place = reg_id;
+										int label_no = get_float_compare_label_no();
+										fprintf(output, "c.eq.s  $f%d, $f%d\n", left_child->place, right_child->place);
+										fprintf(output, "li  %d, 1\n", reg_id);
+										fprintf(output, "bc1t %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
+										fprintf(output, "li  %d, 0\n", reg_id);
+										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
+									}
+									break;
+								}
+							case(BINARY_OP_GE):
+								{
+									//>= is not <
+									free_freg(reg_id);
+									reg_id = get_reg();
+
+									if (reg_id != -1) {
+										expr_node->place = reg_id;
+										int label_no = get_float_compare_label_no();
+										fprintf(output, "c.lt.s  $f%d, $f%d\n", left_child->place, right_child->place);
+										fprintf(output, "li  %d, 1\n", reg_id);
+										fprintf(output, "bc1f %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
+										fprintf(output, "li  %d, 0\n", reg_id);
+										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
+									}
+									break;
+								}
+							case(BINARY_OP_LE):
+								{
+									free_freg(reg_id);
+									reg_id = get_reg();
+									if (reg_id != -1) {
+										expr_node->place = reg_id;
+										int label_no = get_float_compare_label_no();
+										fprintf(output, "c.le.s  $f%d, $f%d\n", left_child->place, right_child->place);
+										fprintf(output, "li  %d, 1\n", reg_id);
+										fprintf(output, "bc1t %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
+										fprintf(output, "li  %d, 0\n", reg_id);
+										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
+									}
+									break;
+								}
+							case(BINARY_OP_NE):
+								{
+									//!= is not ==
+									free_freg(reg_id);
+									reg_id = get_reg();
+									if (reg_id != -1) {
+										expr_node->place = reg_id;
+										int label_no = get_float_compare_label_no();
+										fprintf(output, "c.eq.s  $f%d, $f%d\n", left_child->place, right_child->place);
+										fprintf(output, "li  %d, 1\n", reg_id);
+										fprintf(output, "bc1f %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
+										fprintf(output, "li  %d, 0\n", reg_id);
+										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
+									}
+									break;
+								}
+							case(BINARY_OP_GT):
+								{
+									//> is !<=
+									free_freg(reg_id);
+									reg_id = get_reg();
+									if (reg_id != -1) {
+										expr_node->place = reg_id;
+										int label_no = get_float_compare_label_no();
+										fprintf(output, "c.le.s  $f%d, $f%d\n", left_child->place, right_child->place);
+										fprintf(output, "li  %d, 1\n", reg_id);
+										fprintf(output, "bc1f %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
+										fprintf(output, "li  %d, 0\n", reg_id);
+										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
+									}
+									break;
+								}
+							case(BINARY_OP_LT):
+								{
+									free_freg(reg_id);
+									reg_id = get_reg();
+
+									if (reg_id != -1) {
+										expr_node->place = reg_id;
+										int label_no = get_float_compare_label_no();
+										fprintf(output, "c.lt.s  $f%d, $f%d\n", left_child->place, right_child->place);
+										fprintf(output, "li  %d, 1\n", reg_id);
+										fprintf(output, "bc1t %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
+										fprintf(output, "li  %d, 0\n", reg_id);
+										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
+									}
+									break;
+								}
+							case(BINARY_OP_AND):
+								{
+									//如果左邊或右邊其中一個 == 0.0 那就是0, 反之為1
+									int int_reg_id = get_reg();
+									if (int_reg_id != -1) {
+										expr_node->place = int_reg_id; 
+										int label_no = get_float_compare_label_no();
+										fprintf(output, "li  $%d, 0\n", int_reg_id, left_child->place);
+										fprintf(output, "li.s $f%d, 0.0", reg_id);
+										fprintf(output, "c.eq.s $f%d, $f%d\n", reg_id, left_child->place);
+										fprintf(output, "bc1f %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, (有child==0.0) 就直接執行label後的code
+										fprintf(output, "c.eq.s $f%d, $f%d\n", reg_id, left_child->place);
+										fprintf(output, "bc1f %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, (有child==0.0) 就直接執行label後的code
+										fprintf(output, "li  $%d, 1\n", int_reg_id);
+										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
+									}
+									break;
+								}
+							case(BINARY_OP_OR): 
+								{
+									int int_reg_id = get_reg();
+									if (int_reg_id != -1) {
+										expr_node->place = int_reg_id; 
+										int label_no = get_float_compare_label_no();
+										fprintf(output, "li  $%d, 1\n", int_reg_id, left_child->place);
+										fprintf(output, "li.s $f%d, 0.0", reg_id);
+										fprintf(output, "c.eq.s $f%d, $f%d\n", reg_id, left_child->place);
+										fprintf(output, "bc1f %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是false, (有child!=0.0) 就直接執行label後的code
+										fprintf(output, "c.eq.s $f%d, $f%d\n", reg_id, left_child->place);
+										fprintf(output, "bc1f %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是false, (有child!=0.0) 就直接執行label後的code
+										fprintf(output, "li  $%d, 0\n", int_reg_id);
+										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
+									}
+									break; 
+								}
+							default: 
+								printf("visit_expr出現無法判斷的binary operator\n");
+						}
+					}
+					free_freg(left_child->place);
+					free_freg(right_child->place);
+					break;
+				}
+			case(UNARY_OPERATION):
+				{
+					AST_NODE* child = expr_node->child;
+					gen_expr(child);
+
+					int reg_id = get_freg();
+					if (reg_id != -1){
+						expr_node->place = reg_id;
+					
+						switch(expr_node->semantic_value.exprSemanticValue.op.unaryOp){
+							case(UNARY_OP_POSITIVE):
+								fprintf(output, "mov.s  $f%d, $f%d\n", reg_id, child->place);
+								break;
+							case(UNARY_OP_NEGATIVE):
+								fprintf(output, "neg.s  $f%d, $f%d\n", reg_id, child->place);
+								break;
+							case(UNARY_OP_LOGICAL_NEGATION):
+								{
+									//如果  是0.0就變成1
+									//    不是0.0就變成0
+									fprintf(output, "li.s $f%d, 0.0", reg_id);
+								
+									fprintf(output, "c.eq.s  $f%d, $f%d\n", reg_id, child->place);
+									free_freg(reg_id);
+									reg_id = get_reg();
+									if (reg_id != -1){
+										expr_node->place = reg_id;
+										int label_no = get_float_compare_label_no();
+										fprintf(output, "li  %d, 1\n", reg_id);
+										fprintf(output, "bc1t %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
+										fprintf(output, "li  %d, 0\n", reg_id);
+										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
+									}
+									break;
+								}
+							default:
+								printf("visit_expr出現無法判斷的unary operator\n");
+						}
+					}
+					free_freg(child->place);
+					break;
+				}
+			default:
+				printf("visit_expr出現無法判斷是 BINARY 或 UNIARY 的operation\n");
+		}
+		
+	} else {
+		printf("visit_expr中出現不支援的dataType\n");
+	}
+}
+
+
+
 
 void gen_expr(AST_NODE* expr_node)
 {
