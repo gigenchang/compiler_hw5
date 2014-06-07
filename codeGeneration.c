@@ -3,6 +3,7 @@
 #include "header.h"
 
 #define FRAMESIZE 64;
+#define SIZE 4;
 
 char *function_name;
 FILE *output;
@@ -10,7 +11,10 @@ FILE *output;
 int reg[32] = {0};
 int freg[32] = {0};
 int ARoffset = -4;
+// Buffer
+char label_buffer[32][128];
 // Global counter
+int float_counter = 0;
 int exit_counter = 0;
 int else_counter = 0;
 
@@ -30,18 +34,22 @@ void gen_block(AST_NODE *block);
 void gen_stmt_list(AST_NODE *stmt_ptr);
 void gen_head(char* name);
 
+// variable declaration
+void gen_decl(AST_NODE* ID_node);
+void gen_array_decl(AST_NODE* ID_node);
+void gen_init_decl(AST_NODE* ID_node);
+
 // function declaration
 void gen_prologue(char* func_name);
 void gen_epilogue(char* name);
-void gen_AR_offset();
 void fill_local_var_offset(int offset, SymbolTableEntry* entry);
 
 // stmt generation
 void gen_assign_stmt();
-void gen_if_stmt();
-void gen_for_stmt();
-void gen_return_stmt();
-void gen_func_call_stmt();
+void gen_if_stmt(AST_NODE* node);
+void gen_for_stmt(AST_NODE* node);
+void gen_return_stmt(AST_NODE* node);
+void gen_func_call_stmt(AST_NODE* node);
 
 void fill_place(int place, AST_NODE* node);
 
@@ -142,13 +150,13 @@ void gen_var_decl(AST_NODE *nodePtr)
 				printf("Expected to be ID_NODE\n");
 			switch(temp->dataType){
 				case NORMAL_ID:
-					//gen_decl(temp);
+					gen_decl(temp);
 					break;
 				case ARRAY_ID:
-					//gen_array_decl(temp);
+					gen_array_decl(temp);
 					break;
 				case WITH_INIT_ID:
-					//gen_init_decl(temp);
+					gen_init_decl(temp);
 					break;
 			}
 			temp = temp->rightSibling;
@@ -246,6 +254,72 @@ void gen_stmt(AST_NODE* node)
 	}
 }
 
+void gen_decl(AST_NODE* ID_node)
+{
+	SymbolTableEntry* entry = ID_node->semantic_value.identifierSemanticValue.symbolTableEntry;
+	if(entry->nestingLevel == 0){ // global variable
+		if(entry->attribute->attr.typeDescriptor->properties.dataType == INT_TYPE){
+			fprintf(output, "_%s: .word 0\n");
+		}
+		if(entry->attribute->attr.typeDescriptor->properties.dataType == FLOAT_TYPE){
+			fprintf(output, "_%s: .float 0.0\n");	
+		}
+	}
+	else{						// local variable
+		entry->offset = ARoffset;
+		ARoffset -= 4;	
+	}
+}
+
+void gen_array_decl(AST_NODE* ID_node)
+{	
+	SymbolTableEntry* array_entry = ID_node->semantic_value.identifierSemanticValue.symbolTableEntry;
+	int size = SIZE;
+	int count = 0;
+	int arrayProperty = array_entry->attribute->attr.typeDescriptor->properties.arrayProperties;
+	for(count; count< arrayProperty.dimension; count++){
+		size *= arrayProperty.sizeInEachDimension[count];
+	}
+	if(entry->nestingLevel == 0){
+		fprintf(output, "_%s: .space %d", ID_node->semantic_value.identifierSemanticValue.identifierName, size);
+	}
+	else{
+		array_entry->offset = ARoffset;
+		ARoffset -= size;
+	}
+}
+
+void gen_init_decl(AST_NODE* ID_node)
+{
+	SymbolTableEntry* entry = ID_node->semantic_value.identifierSemanticValue.symbolTableEntry;
+	AST_NODE* const_value = ID_node->rightSibling;
+	CON_Type* value = const_value->semantic_value.const1;
+	if(value->const_type == INTEGERC){
+		if(entry->nestingLevel == 0){
+			fprintf(output, "_%s: .word %d\n", ID_node->semantic_value.identifierSemanticValue.identifierName, value->const_u.intval);
+		}
+		else{
+			int reg = get_reg();	
+			entry->offset = ARoffset;
+			ARoffset -= 4;
+			fprintf(output, "\tli\t$%d, %d\n", reg, value->const_u.intval);
+			fprintf(output, "\tsw\t$%d, %d($fp)\n", reg, entry->offset);
+			free_reg(reg);
+		}
+	}
+	else if(value->const_type == FLOATC){
+		if(entry->nestingLevel == 0){
+			fprintf(output, "_%s: .float %f\n", ID_node->semantic_value.identifierSemanticValue.identifierName, value->const_u.fval);
+		}
+		else{
+			int freg = get_freg();
+			sprintf(label_buffer[float_counter], "_fp%d: .float %f", float_counter, value->const_u.fval);
+			fprintf(output, "\tl.s\t$f%d, _fp%d\n", freg, float_counter);
+			fprintf(output, "\ts.s\t$f%d, %d($fp)\n", freg, entry->offset);
+			free_freg(freg);
+		}
+	}
+}
 
 void gen_prologue(char* func_name)
 {
@@ -313,12 +387,6 @@ void gen_epilogue(char* name)
 	
 	fprintf(output, "\n.data\n");
 	fprintf("\t_framsize_%s: .word %d\n\n", name, FRAMESIZE - ARoffset);
-}
-
-
-void gen_AR_offset()
-{
-	
 }
 
 void fill_local_var_offset(int offset, SymbolTableEntry* entry)
