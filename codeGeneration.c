@@ -17,6 +17,10 @@ char label_buffer[32][128];
 int float_counter = 0;
 int exit_counter = 0;
 int else_counter = 0;
+int	test_counter = 0;
+int	exit_counter = 0;
+int	body_counter = 0;
+int	Inc_counter = 0;	
 
 // Register related function
 int get_reg();
@@ -299,7 +303,10 @@ void gen_init_decl(AST_NODE* ID_node)
 			fprintf(output, "_%s: .word %d\n", ID_node->semantic_value.identifierSemanticValue.identifierName, value->const_u.intval);
 		}
 		else{
-			int reg = get_reg();	
+			int reg = get_reg();
+			if(reg == -1){
+				printf("Register Deficiency\n");
+			}
 			entry->offset = ARoffset;
 			ARoffset -= 4;
 			fprintf(output, "\tli\t$%d, %d\n", reg, value->const_u.intval);
@@ -313,6 +320,9 @@ void gen_init_decl(AST_NODE* ID_node)
 		}
 		else{
 			int freg = get_freg();
+			if(freg == -1){
+				printf("Register Deficiency\n");
+			}
 			sprintf(label_buffer[float_counter], "_fp%d: .float %f", float_counter, value->const_u.fval);
 			fprintf(output, "\tl.s\t$f%d, _fp%d\n", freg, float_counter);
 			fprintf(output, "\ts.s\t$f%d, %d($fp)\n", freg, entry->offset);
@@ -343,12 +353,12 @@ void gen_prologue(char* func_name)
 
 	//使用f4,6,8,10,16,18作為float temporary reg, 原因見http://www.cs.iit.edu/~virgil/cs470/Labs/Lab4.pdf
 	//假設此次作業全部使用single float, 因此使用s.s
-	fprintf(output, "s.s  $25, 24($sp)\n");   //$f4
-	fprintf(output, "s.s  $25, 20($sp)\n");   //$f6
-	fprintf(output, "s.s  $25, 16($sp)\n");   //$f8
-	fprintf(output, "s.s  $25, 12($sp)\n");   //$f10
-	fprintf(output, "s.s  $25, 8($sp)\n");   //$f16
-	fprintf(output, "s.s  $25, 4($sp)\n");   //$f18
+	fprintf(output, "s.s  $f4, 24($sp)\n");   //$f4
+	fprintf(output, "s.s  $f6, 20($sp)\n");   //$f6
+	fprintf(output, "s.s  $f8, 16($sp)\n");   //$f8
+	fprintf(output, "s.s  $f10, 12($sp)\n");   //$f10
+	fprintf(output, "s.s  $f16, 8($sp)\n");   //$f16
+	fprintf(output, "s.s  $f18, 4($sp)\n");   //$f18
 }
 
 
@@ -367,12 +377,12 @@ void gen_epilogue(char* name)
 	fprintf(output, "lw  $24, 32($sp)\n");   //$t8
 	fprintf(output, "lw  $25, 28($sp)\n");   //$t9
 
-	fprintf(output, "l.s  $25, 24($sp)\n");   //$f4
-	fprintf(output, "l.s  $25, 20($sp)\n");   //$f6
-	fprintf(output, "l.s  $25, 16($sp)\n");   //$f8
-	fprintf(output, "l.s  $25, 12($sp)\n");   //$f10
-	fprintf(output, "l.s  $25, 8($sp)\n");   //$f16
-	fprintf(output, "l.s  $25, 4($sp)\n");   //$f18
+	fprintf(output, "l.s  $f4, 24($sp)\n");   //$f4
+	fprintf(output, "l.s  $f6, 20($sp)\n");   //$f6
+	fprintf(output, "l.s  $f8, 16($sp)\n");   //$f8
+	fprintf(output, "l.s  $f10, 12($sp)\n");   //$f10
+	fprintf(output, "l.s  $f16, 8($sp)\n");   //$f16
+	fprintf(output, "l.s  $f18, 4($sp)\n");   //$f18
 	
 	fprintf(output, "lw   $ra, 4($fp)\n");   //load return address
 	fprintf(output, "add  $sp, $fp, 4\n");   //讓sp pop掉執行完的frame(也就是回到$fp+4)
