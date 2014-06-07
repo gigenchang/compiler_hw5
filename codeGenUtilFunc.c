@@ -74,11 +74,11 @@ int gen_read_call(int read_in_type)
 		default:
 			printf("未知的read call type\n");
 	}
-	return reg_id
+	return reg_id;
 }
 
 
-int visit_const(AST_NODE* const_value)
+void visit_const(AST_NODE* const_value)
 {
 	CON_TYPE *val = const_value->semantic_value.const1;
 	
@@ -278,7 +278,7 @@ void visit_expr(AST_NODE* expr_node)
 							case(UNARY_OP_LOGICAL_NEGATION):
 								//如果  是0就變成1
 								//    不是0就變成0
-								fprintf(output, "seq  $%d, 0\n", reg_id, child->place);
+								fprintf(output, "seq  $%d, $%d, 0\n", reg_id, child->place);
 								break;
 							default:
 								printf("visit_expr出現無法判斷的unary operator\n");
@@ -419,11 +419,11 @@ void visit_expr(AST_NODE* expr_node)
 									if (int_reg_id != -1) {
 										expr_node->place = int_reg_id; 
 										int label_no = get_float_compare_label_no();
-										fprintf(output, "li  $%d, 0\n", int_reg_id, left_child->place);
+										fprintf(output, "li  $%d, 0\n", int_reg_id);
 										fprintf(output, "li.s $f%d, 0.0", reg_id);
 										fprintf(output, "c.eq.s $f%d, $f%d\n", reg_id, left_child->place);
 										fprintf(output, "bc1f %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, (有child==0.0) 就直接執行label後的code
-										fprintf(output, "c.eq.s $f%d, $f%d\n", reg_id, left_child->place);
+										fprintf(output, "c.eq.s $f%d, $f%d\n", reg_id, right_child->place);
 										fprintf(output, "bc1f %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, (有child==0.0) 就直接執行label後的code
 										fprintf(output, "li  $%d, 1\n", int_reg_id);
 										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
@@ -436,11 +436,11 @@ void visit_expr(AST_NODE* expr_node)
 									if (int_reg_id != -1) {
 										expr_node->place = int_reg_id; 
 										int label_no = get_float_compare_label_no();
-										fprintf(output, "li  $%d, 1\n", int_reg_id, left_child->place);
+										fprintf(output, "li  $%d, 1\n", int_reg_id);
 										fprintf(output, "li.s $f%d, 0.0", reg_id);
 										fprintf(output, "c.eq.s $f%d, $f%d\n", reg_id, left_child->place);
 										fprintf(output, "bc1f %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是false, (有child!=0.0) 就直接執行label後的code
-										fprintf(output, "c.eq.s $f%d, $f%d\n", reg_id, left_child->place);
+										fprintf(output, "c.eq.s $f%d, $f%d\n", reg_id, right_child->place);
 										fprintf(output, "bc1f %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是false, (有child!=0.0) 就直接執行label後的code
 										fprintf(output, "li  $%d, 0\n", int_reg_id);
 										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
