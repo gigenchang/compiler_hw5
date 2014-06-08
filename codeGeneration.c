@@ -6,7 +6,19 @@
 
 FILE *output;
 
-void gen_stmt(AST_NODE* stmtNode);
+int reg[32] = {0};
+int freg[32] = {0};
+int ARoffset = -4;
+// Buffer
+int buffer_counter = 0;
+char label_buffer[BUFFER_SIZE][128];
+// Global counter
+int float_counter = 0;
+int else_counter = 0;
+int	test_counter = 0;
+int	exit_counter = 0;
+int	body_counter = 0;
+int	Inc_counter = 0;	
 
 void dump_buff()
 {
@@ -208,7 +220,7 @@ void gen_stmt(AST_NODE* stmtNode)
 				gen_assign_stmt(stmtNode);
 				break;
 			case FUNCTION_CALL_STMT:
-				gen_func_call_stmt(stmtNode);
+				visit_function_call(stmtNode);
 				break;
 			case RETURN_STMT:
 				gen_return_stmt(stmtNode);
@@ -414,7 +426,7 @@ void gen_for_stmt(AST_NODE* node)
 
 	fprintf(output, "Body_%d:\n", body_counter);
 	gen_stmt(statement);
-	fprintf(output, "\tj Inc\n", Inc_counter);
+	fprintf(output, "\tj Inc_%d\n", Inc_counter);
 
 	fprintf(output, "Lexit_%d:\n", exit_counter);
 
@@ -446,5 +458,6 @@ void gen_return_stmt(AST_NODE* node)
 }
 
 
-void gen_relop_expr_list(AST_NODE* node){};
-void gen_assign_stmt_list(AST_NODE* node){};
+void gen_relop_expr_list(AST_NODE* node){}
+void gen_assign_stmt_list(AST_NODE* node){}
+void gen_assign_expr_list(AST_NODE* node){}

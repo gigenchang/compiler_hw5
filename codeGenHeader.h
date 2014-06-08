@@ -1,5 +1,6 @@
 #ifndef LINSHANITY
 #define LINSHANITY
+#include "symbolTable.h"
 #define REG_SIZE 32
 #define FRAME_SIZE 64
 #define SIZE 4
@@ -7,19 +8,6 @@
 
 extern FILE *output;
 
-int reg[32] = {0};
-int freg[32] = {0};
-int ARoffset = -4;
-// Buffer
-int buffer_counter = 0;
-char label_buffer[BUFFER_SIZE][128];
-// Global counter
-int float_counter = 0;
-int else_counter = 0;
-int	test_counter = 0;
-int	exit_counter = 0;
-int	body_counter = 0;
-int	Inc_counter = 0;	
 
 void dump_buff();
 // Register related function
@@ -53,6 +41,8 @@ void gen_for_stmt(AST_NODE* node);
 void gen_return_stmt(AST_NODE* node);
 void gen_relop_expr_list(AST_NODE* node);
 void gen_assign_stmt_list(AST_NODE* node);
+void gen_stmt(AST_NODE* stmtNode);
+void gen_assign_expr_list(AST_NODE* node);
 
 // added by yenchen
 void gen_assign_stmt(AST_NODE* assign_stmt_node);

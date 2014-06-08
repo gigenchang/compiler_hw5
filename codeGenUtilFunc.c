@@ -165,7 +165,7 @@ void visit_var_ref(AST_NODE* id_node)
 				AST_NODE* current_dimension_node = id_node->child;
 				int total_offset_reg = get_reg();
 				if (total_offset_reg != -1) {
-					fpritnf(output, "li  $%d,  0\n", total_offset_reg); //先把total offset初始化成0
+					fprintf(output, "li  $%d,  0\n", total_offset_reg); //先把total offset初始化成0
 					while(current_dimension_node != NULL){
 						gen_expr(current_dimension_node);
 						
