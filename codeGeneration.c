@@ -98,15 +98,14 @@ void gen_code(AST_NODE *proj)
 void gen_global_decl(AST_NODE *global_decl)
 {
 	printf("IN FUNCTION [gen_global_decl]\n");
-	
-	if(global_decl->semantic_value.declSemanticValue.kind == VARIABLE_DECL_LIST_NODE){
-		gen_decl_list(global_decl);
-		global_decl = global_decl->rightSibling;	
+	if(global_decl->nodeType == VARIABLE_DECL_LIST_NODE){
+		gen_decl_list(global_decl->child);
 	}
-	if(global_decl->semantic_value.declSemanticValue.kind == FUNCTION_DECL){
+	else if(global_decl->semantic_value.declSemanticValue.kind == FUNCTION_DECL){
 		gen_func_type_empty(global_decl);
 	}
 	else{
+		printf("TYPE: %d\n", global_decl->nodeType);
 		printf("Unhandled function type. \n");
 	}
 	
@@ -132,8 +131,8 @@ void gen_var_decl(AST_NODE *nodePtr)
 {
 	printf("IN FUNCTION [gen_var_decl]\n");
 	if(nodePtr->semantic_value.declSemanticValue.kind == VARIABLE_DECL){
-		AST_NODE *temp = nodePtr->child->rightSibling;
 		while(nodePtr != NULL){
+		AST_NODE *temp = nodePtr->child->rightSibling;
 			if(temp->nodeType != IDENTIFIER_NODE)
 				printf("Expected to be ID_NODE\n");
 			switch(temp->dataType){
@@ -147,7 +146,7 @@ void gen_var_decl(AST_NODE *nodePtr)
 					gen_init_decl(temp);
 					break;
 			}
-			temp = temp->rightSibling;
+		nodePtr = nodePtr->rightSibling;
 		}
 	}
 	else
@@ -201,10 +200,10 @@ void gen_stmt_list(AST_NODE *stmt_ptr)
 {
 	printf("IN FUNCTION [gen_stmt_list]\n");
 	while(stmt_ptr != NULL){
-		gen_stmt(stmt_ptr->child);
+		gen_stmt(stmt_ptr);
 		stmt_ptr = stmt_ptr->rightSibling;
 	}
-	gen_stmt(stmt_ptr->child);
+	//gen_stmt(stmt_ptr->child);
 }
 
 
@@ -364,7 +363,6 @@ void gen_epilogue(char* name)
 {
 	printf("IN FUNCTION [gen_epilogue]\n");
 	fprintf(output, "# epilogue sequence\n");
-	fprintf(output, "_end_%s:\n", name);
 	fprintf(output, "lw  $8,  64($sp)\n");   //$t0   
 	fprintf(output, "lw  $9,  60($sp)\n"); 
 	fprintf(output, "lw  $10, 56($sp)\n"); 
