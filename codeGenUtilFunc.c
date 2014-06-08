@@ -6,7 +6,6 @@ extern FILE *output;
 
 //TODO: 處理reg不夠的問題
 //TODO ARRAY ref offset問題
-//TODO visit_expr
 
 
 int float_compare_label_no = 0;
@@ -142,8 +141,64 @@ void visit_var_ref(AST_NODE* id_node)
 			}
 			break;
 		case(ARRAY_ID):
-			//TODO
-			break;
+			{
+				ArrayProperties arrayProperty = array_entry->attribute->attr.typeDescriptor->properties.arrayProperties;
+
+				int current_dimension = 0;
+				AST_NODE* current_dimension_node = id_node->child;
+				int total_offset_reg = get_reg();
+				if (total_offset_reg != -1) {
+					fpritnf(output, "li  $%d,  0\n", total_offset_reg); //先把total offset初始化成0
+					while(current_dimension_node != NULL){
+						gen_expr(current_dimension_node);
+						
+						int reg_id = get_reg();
+						if (reg_id != -1){
+							fprintf(output, "li  $%d, %d\n", reg_id, arrayProperty.dimension[current_dimension]);
+							fprintf(output, "mul $%d, $%d, 4\n", reg_id, reg_id);  //乘上size=4
+							fprintf(output, "mul $%d, $%d, $%d\n", reg_id, reg_id, current_dimension_node->place);  //乘上[expr]的大小
+
+							fprintf(output, "add $%d, $%d, $%d\n", total_offset_reg, total_offset_reg, reg_id);  //最後把結果加到total offset reg內
+							free_reg(reg_id);
+						}
+
+						current_dimension += 1;
+						current_dimension_node = current_dimension_node->rightSibling;
+					}
+					switch (id_node->dataType) {
+						case INT_TYPE:
+							int reg_id = get_reg();
+							if (reg_id != -1){
+								id_node->place = reg_id;
+								if (is_global) {
+									fprintf(output, "lw  $%d, _%s+%d($%d)\n", reg_id, var_name, entry->offset, total_offset_reg);
+								} else {
+									fprintf(output, "add $%d, $%d, $fp\n",  total_offset_reg, total_offset_reg);
+									fprintf(output, "add $%d, $%d, %d\n",  total_offset_reg, total_offset_reg, entry->offset);
+									fprintf(output, "lw  $%d, ($%d)\n",  reg_id, total_offset_reg);
+								}
+							}
+							break;
+						case FLOAT_TYPE:
+							int reg_id = get_freg();
+							if (reg_id != -1){
+								id_node->place = reg_id;
+								if (is_global) {
+									fprintf(output, "l.s   $f%d, _%s+%d($%d)\n", reg_id, var_name, entry->offset, total_offset_reg);
+								} else {
+									fprintf(output, "add  $%d, $%d, $fp\n",  total_offset_reg, total_offset_reg);
+									fprintf(output, "add  $%d, $%d, %d\n",  total_offset_reg, total_offset_reg, entry->offset);
+									fprintf(output, "l.s  $f%d, ($%d)\n",  reg_id, total_offset_reg);
+								}
+							}
+							break;
+						default:
+							printf("visit_var_ref出現不是INT也不是FLOAT的normal id\n");	
+					}
+					free_reg(total_offset_reg);
+				}
+				break;
+			}
 		default:
 			printf("visit_var_ref出現無法判斷為normal或array的id_node\n");
 	}
