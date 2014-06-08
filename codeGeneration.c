@@ -22,6 +22,7 @@ int	Inc_counter = 0;
 
 void dump_buff()
 {
+	printf("IN FUNCTION [dump_buff]\n");
 	int count = 0;
 	fprintf(output, ".data\n");
 	for(count = 0; count < buffer_counter; count++){
@@ -32,6 +33,7 @@ void dump_buff()
 
 int get_reg()
 {
+	printf("IN FUNCTION [get_reg]\n");
 	int i;
 	for (i = 8; i<=25 ; i++) {
 		if (reg[i] == 0) {
@@ -44,6 +46,7 @@ int get_reg()
 
 int get_freg()
 {
+	printf("IN FUNCTION [get_freg]\n");
 	int i;
 	for (i = 4; i<=30 ; i+=2) {
 		if (i == 12 || i == 14) {
@@ -59,21 +62,25 @@ int get_freg()
 
 int get_offset(SymbolTableEntry* entry)
 {
+	printf("IN FUNCTION [get_offset]\n");
 	return entry->offset;
 }
 
 void free_reg(int free_id)
 {
+	printf("IN FUNCTION [free_reg]\n");
 	reg[free_id] = 0;
 }
 
 void free_freg(int free_id)
 {
+	printf("IN FUNCTION [free_freg]\n");
 	freg[free_id] = 0;
 }
 
 void gen_code(AST_NODE *proj)
 {
+	printf("IN FUNCTION [gen_code]\n");
 	AST_NODE *nodePtr;
 	nodePtr = proj->child;
 	output = fopen("output.s", "w");
@@ -89,6 +96,7 @@ void gen_code(AST_NODE *proj)
 
 void gen_global_decl(AST_NODE *global_decl)
 {
+	printf("IN FUNCTION [gen_global_decl]\n");
 	
 	if(global_decl->semantic_value.declSemanticValue.kind == VARIABLE_DECL_LIST_NODE){
 		gen_decl_list(global_decl);
@@ -105,6 +113,7 @@ void gen_global_decl(AST_NODE *global_decl)
 
 void gen_decl_list(AST_NODE *decl_list)
 {
+	printf("IN FUNCTION [gen_decl_list]\n");
 	fprintf(output, ".data\n");
 	while(decl_list != NULL){
 		if(decl_list->semantic_value.declSemanticValue.kind == VARIABLE_DECL){
@@ -120,6 +129,7 @@ void gen_decl_list(AST_NODE *decl_list)
 
 void gen_var_decl(AST_NODE *nodePtr)
 {
+	printf("IN FUNCTION [gen_var_decl]\n");
 	if(nodePtr->semantic_value.declSemanticValue.kind == VARIABLE_DECL){
 		AST_NODE *temp = nodePtr->child->rightSibling;
 		while(nodePtr != NULL){
@@ -145,6 +155,7 @@ void gen_var_decl(AST_NODE *nodePtr)
 
 void gen_func_type_empty(AST_NODE *func_head)
 {	
+	printf("IN FUNCTION [gen_func_type_empty]\n");
 	int ARoffset = -4;
 	AST_NODE *nodePtr = func_head->child->rightSibling;
 	char* func_name = nodePtr->semantic_value.const1->const_u.sc;
@@ -168,6 +179,7 @@ void gen_func_type_empty(AST_NODE *func_head)
 
 void gen_block(AST_NODE *block)
 {
+	printf("IN FUNCTION [gen_block]\n");
 	switch(block->child->dataType){
 		case VARIABLE_DECL_LIST_NODE:
 			gen_decl_list(block->child);
@@ -185,6 +197,7 @@ void gen_block(AST_NODE *block)
 
 void gen_stmt_list(AST_NODE *stmt_ptr)
 {
+	printf("IN FUNCTION [gen_stmt_list]\n");
 	while(stmt_ptr != NULL){
 		gen_stmt(stmt_ptr->child);
 		stmt_ptr = stmt_ptr->rightSibling;
@@ -195,6 +208,7 @@ void gen_stmt_list(AST_NODE *stmt_ptr)
 
 void gen_head(char* name)
 {
+	printf("IN FUNCTION [gen_head]\n");
 	fprintf(output, ".text\n");
 	fprintf(output, "%s:\n", name);
 }
@@ -202,6 +216,7 @@ void gen_head(char* name)
 
 void gen_stmt(AST_NODE* stmtNode)
 {
+	printf("IN FUNCTION [gen_stmt]\n");
 	if(stmtNode->nodeType == NUL_NODE){
 		return;
 	}
@@ -233,6 +248,7 @@ void gen_stmt(AST_NODE* stmtNode)
 
 void gen_decl(AST_NODE* ID_node)
 {
+	printf("IN FUNCTION [gen_decl]\n");
 	SymbolTableEntry* entry = ID_node->semantic_value.identifierSemanticValue.symbolTableEntry;
 	if(entry->nestingLevel == 0){ // global variable
 		if(entry->attribute->attr.typeDescriptor->properties.dataType == INT_TYPE){
@@ -250,6 +266,7 @@ void gen_decl(AST_NODE* ID_node)
 
 void gen_array_decl(AST_NODE* ID_node)
 {	
+	printf("IN FUNCTION [gen_array_decl]\n");
 	SymbolTableEntry* array_entry = ID_node->semantic_value.identifierSemanticValue.symbolTableEntry;
 	int size = SIZE;
 	int count = 0;
@@ -268,6 +285,7 @@ void gen_array_decl(AST_NODE* ID_node)
 
 void gen_init_decl(AST_NODE* ID_node)
 {
+	printf("IN FUNCTION [gen_init_decl]\n");
 	SymbolTableEntry* entry = ID_node->semantic_value.identifierSemanticValue.symbolTableEntry;
 	AST_NODE* const_value = ID_node->rightSibling;
 	CON_Type* value = const_value->semantic_value.const1;
@@ -310,6 +328,7 @@ void gen_init_decl(AST_NODE* ID_node)
 
 void gen_prologue(char* func_name)
 {
+	printf("IN FUNCTION [gen_prologue]\n");
 	fprintf(output, "# prologue sequence\n");
 	fprintf(output, "sw  $ra, 0($sp)\n");    //存return address
 	fprintf(output, "sw  $fp, -4($sp)\n");   //存現在的fp
@@ -341,6 +360,7 @@ void gen_prologue(char* func_name)
 
 void gen_epilogue(char* name)
 {
+	printf("IN FUNCTION [gen_epilogue]\n");
 	fprintf(output, "# epilogue sequence\n");
 	fprintf(output, "_end_%s:\n", name);
 	fprintf(output, "lw  $8,  64($sp)\n");   //$t0   
@@ -378,9 +398,9 @@ void gen_epilogue(char* name)
 
 }
 
-void gen_assign_stmt();
 void gen_if_stmt(AST_NODE* node)
 {
+	printf("IN FUNCTION [gen_if_stmt]\n");
 	AST_NODE* test_expr = node->child;
 	AST_NODE* if_stmt = test_expr->rightSibling;
 	AST_NODE* else_stmt = if_stmt->rightSibling;
@@ -408,6 +428,7 @@ void gen_if_stmt(AST_NODE* node)
 
 void gen_for_stmt(AST_NODE* node)
 {
+	printf("IN FUNCTION [gen_for_stmt]\n");
 	AST_NODE* assign_expr_1 = node->child;
 	AST_NODE* relop_expr = assign_expr_1->rightSibling;
 	AST_NODE* assign_expr_2 = relop_expr->rightSibling;
@@ -439,6 +460,7 @@ void gen_for_stmt(AST_NODE* node)
 
 void gen_return_stmt(AST_NODE* node)
 {
+	printf("IN FUNCTION [gen_return_stmt]\n");
 	AST_NODE* relop_expr = node->child;
 	gen_expr(relop_expr);
 	int type = relop_expr->nodeType;
@@ -458,6 +480,15 @@ void gen_return_stmt(AST_NODE* node)
 }
 
 
-void gen_relop_expr_list(AST_NODE* node){}
-void gen_assign_stmt_list(AST_NODE* node){}
-void gen_assign_expr_list(AST_NODE* node){}
+void gen_relop_expr_list(AST_NODE* node)
+{
+	printf("IN FUNCTION [gen_relop_expr_list]\n");
+}
+void gen_assign_stmt_list(AST_NODE* node)
+{
+	printf("IN FUNCTION [gen_assign_stmt_list]\n");
+}
+void gen_assign_expr_list(AST_NODE* node)
+{
+	printf("IN FUNCTION [gen_assign_expr_list]\n");
+}
