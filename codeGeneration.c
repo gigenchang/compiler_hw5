@@ -2,9 +2,11 @@
 #include <string.h>
 #include "header.h"
 #include "codeGenHeader.h"
+#include "symbolTable.h"
 
 FILE *output;
 
+void gen_stmt(AST_NODE* stmtNode);
 
 void dump_buff()
 {
@@ -78,9 +80,9 @@ void gen_global_decl(AST_NODE *global_decl)
 	
 	if(global_decl->semantic_value.declSemanticValue.kind == VARIABLE_DECL_LIST_NODE){
 		gen_decl_list(global_decl);
-		node = node->rightSibling;	
+		global_decl = global_decl->rightSibling;	
 	}
-	if(global_decl->semantic_value.declSemanticValue->kind == FUNCTION_DECL){
+	if(global_decl->semantic_value.declSemanticValue.kind == FUNCTION_DECL){
 		gen_func_type_empty(global_decl);
 	}
 	else{
@@ -91,7 +93,7 @@ void gen_global_decl(AST_NODE *global_decl)
 
 void gen_decl_list(AST_NODE *decl_list)
 {
-	fprintf(output, ".data"\n);
+	fprintf(output, ".data\n");
 	while(decl_list != NULL){
 		if(decl_list->semantic_value.declSemanticValue.kind == VARIABLE_DECL){
 				gen_var_decl(decl_list);
@@ -106,7 +108,7 @@ void gen_decl_list(AST_NODE *decl_list)
 
 void gen_var_decl(AST_NODE *nodePtr)
 {
-	if(nodePtr->semantic_value.declSemanticValue->kind == VARIABLE_DECL){
+	if(nodePtr->semantic_value.declSemanticValue.kind == VARIABLE_DECL){
 		AST_NODE *temp = nodePtr->child->rightSibling;
 		while(nodePtr != NULL){
 			if(temp->nodeType != IDENTIFIER_NODE)
@@ -133,7 +135,7 @@ void gen_func_type_empty(AST_NODE *func_head)
 {	
 	int ARoffset = -4;
 	AST_NODE *nodePtr = func_head->child->rightSibling;
-	char* func_name = nodePtr->semantic_value.const1->sc;
+	char* func_name = nodePtr->semantic_value.const1->const_u.sc;
 //	Are these needed ?
 	if(strcmp("read", func_name) == 0){
 		// gen_read();
@@ -156,9 +158,9 @@ void gen_block(AST_NODE *block)
 {
 	switch(block->child->dataType){
 		case VARIABLE_DECL_LIST_NODE:
-			gen_decl_list(block->child)
-			if(block->child->sibling != NULL){
-				gen_stmt_list(block->child->sibling);
+			gen_decl_list(block->child);
+			if(block->child->rightSibling != NULL){
+				gen_stmt_list(block->child->rightSibling);
 			}
 			break;
 		case STMT_LIST_NODE:
@@ -171,11 +173,11 @@ void gen_block(AST_NODE *block)
 
 void gen_stmt_list(AST_NODE *stmt_ptr)
 {
-	while(stmt_list != NULL){
+	while(stmt_ptr != NULL){
 		gen_stmt(stmt_ptr->child);
 		stmt_ptr = stmt_ptr->rightSibling;
 	}
-	gen_stmt(stmt->child);
+	gen_stmt(stmt_ptr->child);
 }
 
 
@@ -192,7 +194,7 @@ void gen_stmt(AST_NODE* stmtNode)
 		return;
 	}
 	else if(stmtNode->nodeType == BLOCK_NODE){
-		gen_block(node);
+		gen_block(stmtNode);
 	}
 	else{
 		switch(stmtNode->semantic_value.stmtSemanticValue.kind){
@@ -222,10 +224,10 @@ void gen_decl(AST_NODE* ID_node)
 	SymbolTableEntry* entry = ID_node->semantic_value.identifierSemanticValue.symbolTableEntry;
 	if(entry->nestingLevel == 0){ // global variable
 		if(entry->attribute->attr.typeDescriptor->properties.dataType == INT_TYPE){
-			fprintf(output, "_%s: .word 0\n");
+			fprintf(output, "_%s: .word 0\n", entry->name);
 		}
 		if(entry->attribute->attr.typeDescriptor->properties.dataType == FLOAT_TYPE){
-			fprintf(output, "_%s: .float 0.0\n");	
+			fprintf(output, "_%s: .float 0.0\n", entry->name);	
 		}
 	}
 	else{						// local variable
@@ -239,11 +241,11 @@ void gen_array_decl(AST_NODE* ID_node)
 	SymbolTableEntry* array_entry = ID_node->semantic_value.identifierSemanticValue.symbolTableEntry;
 	int size = SIZE;
 	int count = 0;
-	int arrayProperty = array_entry->attribute->attr.typeDescriptor->properties.arrayProperties;
+	ArrayProperties arrayProperty = array_entry->attribute->attr.typeDescriptor->properties.arrayProperties;
 	for(count; count< arrayProperty.dimension; count++){
 		size *= arrayProperty.sizeInEachDimension[count];
 	}
-	if(entry->nestingLevel == 0){
+	if(array_entry->nestingLevel == 0){
 		fprintf(output, "_%s: .space %d", ID_node->semantic_value.identifierSemanticValue.identifierName, size);
 	}
 	else{
@@ -301,7 +303,7 @@ void gen_prologue(char* func_name)
 	fprintf(output, "sw  $fp, -4($sp)\n");   //存現在的fp
 	fprintf(output, "add $fp, $sp, -4\n");   //改fp
 	fprintf(output, "add $sp, $sp, -8\n");   //改sp
-	fprintf(output, "lw  $v0, _framesize_of_%s\n", name);
+	fprintf(output, "lw  $v0, _framesize_of_%s\n", func_name);
 	fprintf(output, "sub $sp, $sp, $v0\n");  //移動sp,騰出空間用作push
 	fprintf(output, "sw  $8,  64($sp)\n");   //$t0   
 	fprintf(output, "sw  $9,  60($sp)\n"); 
@@ -360,7 +362,8 @@ void gen_epilogue(char* name)
 	}
 	
 	fprintf(output, "\n.data\n");
-	fprintf("\t_framsize_%s: .word %d\n\n", name, FRAME_SIZE - ARoffset);
+	fprintf(output, "\t_framsize_%s: .word %d\n\n", name, FRAME_SIZE - ARoffset);
+
 }
 
 void gen_assign_stmt();
@@ -394,18 +397,18 @@ void gen_if_stmt(AST_NODE* node)
 void gen_for_stmt(AST_NODE* node)
 {
 	AST_NODE* assign_expr_1 = node->child;
-	AST_NODE* relop_expr = assign_expr->rightSibling;
+	AST_NODE* relop_expr = assign_expr_1->rightSibling;
 	AST_NODE* assign_expr_2 = relop_expr->rightSibling;
-	AST_NODE* statement = assign_expr2->rightSibling;
+	AST_NODE* statement = assign_expr_2->rightSibling;
 
-	gen_assign_expr_list(assign_expr);
+	gen_assign_expr_list(assign_expr_1);
 
 	fprintf(output, "Test_%d:\n", test_counter);
 	gen_relop_expr_list(relop_expr);
 	fprintf(output, "\tbeqz\t$%d, Lexit_%d\n", relop_expr->place, exit_counter);
 	fprintf(output, "\tj Body_%d\n", body_counter);
 
-	fprintf(output, "Inc_%d:\n", inc_counter);
+	fprintf(output, "Inc_%d:\n", Inc_counter);
 	gen_assign_expr_list(assign_expr_2);
 	fprintf(output, "\tj TEST_%d\n", test_counter);
 
@@ -442,19 +445,6 @@ void gen_return_stmt(AST_NODE* node)
 	}
 }
 
-void gen_func_call_stmt(AST_NODE* node)
-{
-	char* func_name = node->semantic_value.const1->sc;
-	if(strcmp(func_name, "write") == 0){
-		// gen_write;
-	}	
-	else if (strcmp(func_name, "read") == 0){
-		// gen_read;
-	}
-	else{
-		
-	}
-}
 
-void gen_relop_expr_list(AST_NODE* node);
-void gen_assign_stmt_list(AST_NODE* node);
+void gen_relop_expr_list(AST_NODE* node){};
+void gen_assign_stmt_list(AST_NODE* node){};
