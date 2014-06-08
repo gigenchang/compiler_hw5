@@ -517,6 +517,7 @@ void gen_expr(AST_NODE* expr_node)
 	 * */
 	switch (expr_node->nodeType) {
 		case(EXPR_NODE):
+			visit_expr(expr_node);
 			break;
 		case(IDENTIFIER_NODE):
 			visit_var_ref(expr_node);			
