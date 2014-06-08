@@ -463,7 +463,7 @@ void gen_return_stmt(AST_NODE* node)
 	printf("IN FUNCTION [gen_return_stmt]\n");
 	AST_NODE* relop_expr = node->child;
 	gen_expr(relop_expr);
-	int type = relop_expr->nodeType;
+	int type = relop_expr->dataType;
 	int reg = relop_expr->place;
 	
 	if(type == INT_TYPE){
@@ -475,6 +475,7 @@ void gen_return_stmt(AST_NODE* node)
 		free_freg(reg);
 	}
 	else{
+		printf("TYPE: %d\n", type);
 		printf("Unhandled return type\n");
 	}
 }

@@ -1,4 +1,3 @@
-.data
 .text
 main:
 # prologue sequence
@@ -26,42 +25,18 @@ s.s  $f16, 8($sp)
 s.s  $f18, 4($sp)
 _begin_main:
 .data
-li  $8, 1
-li.s  $f4, 2.000000
-li  $8, 3
-li.s  $f4, 4.000000
-li  $8, 5
-li  $8, 55
-li.s  $f4, 6.000000
-li.s  $f4, 66.000000
-li  $8, 7
-li  $8, 77
-li.s  $f4, 8.000000
-li.s  $f4, 88.000000
-li  $8, 9
-li  $8, 99
-li.s  $f4, 10.000000
-li.s  $f4, 100.000000
-li  $8, 1
-li.s  $f4, 2.000000
-li  $8, 3
-li.s  $f4, 4.000000
-li  $8, 5
-li  $8, 55
-li.s  $f4, 6.000000
-li.s  $f4, 66.000000
-li  $8, 7
-li  $8, 77
-li.s  $f4, 8.000000
-li.s  $f4, 88.000000
-li  $8, 9
-li  $8, 99
-li.s  $f4, 10.000000
-li.s  $f4, 100.000000
+jal  read
+move $8, $v0
+jal  read
+move $8, $v0
+jal  fread
+move $8, $v0
+jal  fread
+move $8, $v0
 li  $8, 0
+	move	$v0, $8
 _end_main:
 # epilogue sequence
-_end_main:
 lw  $8,  64($sp)
 lw  $9,  60($sp)
 lw  $10, 56($sp)
