@@ -15,12 +15,14 @@ const char INT_COMPARE_LABEL[] = "Int_Compare_Label_";
 
 int get_float_compare_label_no()
 {
+	printf("[get_float_compare_label_no]\n");
 	float_compare_label_no += 1;
 	return float_compare_label_no;
 }
 
 int get_int_compare_label_no()
 {
+	printf("[get_int_compare_label_no]\n");
 	int_compare_label_no += 1;
 	return int_compare_label_no;
 }
@@ -28,6 +30,7 @@ int get_int_compare_label_no()
 
 void gen_write_call(AST_NODE* expr)
 {
+	printf("[get_write_call]\n");
 	int type = expr->dataType;
 	switch(type){
 		case INT_TYPE:
@@ -62,6 +65,7 @@ void gen_write_call(AST_NODE* expr)
 
 int gen_read_call(int read_in_type)
 {
+	printf("[get_read_call]\n");
 	int reg_id;
 	switch(read_in_type){
 		case INT_TYPE:
@@ -88,6 +92,7 @@ int gen_read_call(int read_in_type)
 
 void visit_const(AST_NODE* const_value)
 {
+	printf("[visit_const]\n");
 	CON_Type *val = const_value->semantic_value.const1;
 	
    	switch(val->const_type){
@@ -119,6 +124,7 @@ void visit_const(AST_NODE* const_value)
 
 void visit_var_ref(AST_NODE* id_node)
 {
+	printf("[visit_var_ref]\n");
 	//var可能是global或local
 	char* var_name = id_node->semantic_value.identifierSemanticValue.identifierName;
 	SymbolTableEntry* entry = id_node->semantic_value.identifierSemanticValue.symbolTableEntry;
@@ -227,6 +233,7 @@ void visit_var_ref(AST_NODE* id_node)
 
 void visit_function_call(AST_NODE* func_call_stmt_node)
 {
+	printf("[visit_function_call]\n");
 	AST_NODE* func_name_node = func_call_stmt_node->child;
 	AST_NODE* func_para_node = func_name_node->rightSibling;
 
@@ -254,6 +261,7 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 
 void gen_assign_stmt(AST_NODE* assign_stmt_node)
 {
+	printf("[gen_assign_stmt]\n");
 	AST_NODE* left_node = assign_stmt_node->child;
 	AST_NODE* right_node = left_node->rightSibling;
 	gen_expr(right_node);
@@ -262,6 +270,7 @@ void gen_assign_stmt(AST_NODE* assign_stmt_node)
 
 void visit_expr(AST_NODE* expr_node)
 {
+	printf("[visit_expr]\n");
 	if (expr_node->dataType == INT_TYPE){
 		switch(expr_node->semantic_value.exprSemanticValue.kind){
 			case(BINARY_OPERATION):
@@ -593,6 +602,7 @@ void gen_expr(AST_NODE* expr_node)
 	 * 本function的功能為幫每個expr node(var, func_call, const)配置運算的reg, 
 	 * 還有生成以reg進行運算的mips code
 	 * */
+	printf("[gen_expr]\n");
 	switch (expr_node->nodeType) {
 		case(EXPR_NODE):
 			visit_expr(expr_node);
