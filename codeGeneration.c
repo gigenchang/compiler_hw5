@@ -2,8 +2,10 @@
 #include <string.h>
 #include "header.h"
 
-#define FRAMESIZE 64;
-#define SIZE 4;
+#define REG_SIZE 32
+#define FRAME_SIZE 64
+#define SIZE 4
+#define BUFFER_SIZE 32
 
 char *function_name;
 FILE *output;
@@ -12,7 +14,8 @@ int reg[32] = {0};
 int freg[32] = {0};
 int ARoffset = -4;
 // Buffer
-char label_buffer[32][128];
+int buffer_counter = 0;
+char label_buffer[BUFFER_SIZE][128];
 // Global counter
 int float_counter = 0;
 int exit_counter = 0;
@@ -22,6 +25,7 @@ int	exit_counter = 0;
 int	body_counter = 0;
 int	Inc_counter = 0;	
 
+void dump_buff();
 // Register related function
 int get_reg();
 int get_freg();
@@ -46,7 +50,6 @@ void gen_init_decl(AST_NODE* ID_node);
 // function declaration
 void gen_prologue(char* func_name);
 void gen_epilogue(char* name);
-void fill_local_var_offset(int offset, SymbolTableEntry* entry);
 
 // stmt generation
 void gen_assign_stmt();
@@ -54,8 +57,18 @@ void gen_if_stmt(AST_NODE* node);
 void gen_for_stmt(AST_NODE* node);
 void gen_return_stmt(AST_NODE* node);
 void gen_func_call_stmt(AST_NODE* node);
+void gen_relop_expr_list(AST_NODE* node);
+void gen_assign_stmt_list(AST_NODE* node);
 
-void fill_place(int place, AST_NODE* node);
+void dump_buff()
+{
+	int count = 0;
+	fprintf(output, ".data\n");
+	for(count = 0; count < buffer_counter; count++){
+		fprintf(output, "%s\n", label_buffer[count]);
+	}
+	buffer_counter = 0;
+}
 
 int get_reg()
 {
@@ -110,7 +123,7 @@ void gen_code(AST_NODE *proj)
 		gen_global_decl(nodePtr);
 		nodePtr = nodePtr->rightSibling;
 	}
-	
+	dump_buff();	
 	fclose(output);
 }
 
@@ -323,10 +336,14 @@ void gen_init_decl(AST_NODE* ID_node)
 			if(freg == -1){
 				printf("Register Deficiency\n");
 			}
+			if(buffer_counter == BUFFER_SIZE){
+				printf("Buffer Boundary Reached\n");
+			}
 			sprintf(label_buffer[float_counter], "_fp%d: .float %f", float_counter, value->const_u.fval);
 			fprintf(output, "\tl.s\t$f%d, _fp%d\n", freg, float_counter);
 			fprintf(output, "\ts.s\t$f%d, %d($fp)\n", freg, entry->offset);
 			free_freg(freg);
+			buffer_counter++;
 		}
 	}
 }
@@ -397,12 +414,7 @@ void gen_epilogue(char* name)
 	}
 	
 	fprintf(output, "\n.data\n");
-	fprintf("\t_framsize_%s: .word %d\n\n", name, FRAMESIZE - ARoffset);
-}
-
-void fill_local_var_offset(int offset, SymbolTableEntry* entry)
-{
-	entry->offset = offset;
+	fprintf("\t_framsize_%s: .word %d\n\n", name, FRAME_SIZE - ARoffset);
 }
 
 void gen_assign_stmt();
@@ -432,6 +444,7 @@ void gen_if_stmt(AST_NODE* node)
 	else_counter++;
 	exit_counter++;		
 }
+
 void gen_for_stmt(AST_NODE* node)
 {
 	AST_NODE* assign_expr_1 = node->child;
@@ -462,6 +475,7 @@ void gen_for_stmt(AST_NODE* node)
 	body_counter++;
 	Inc_counter++;	
 }
+
 void gen_return_stmt(AST_NODE* node)
 {
 	AST_NODE* relop_expr = node->child;
@@ -481,6 +495,7 @@ void gen_return_stmt(AST_NODE* node)
 		printf("Unhandled return type\n");
 	}
 }
+
 void gen_func_call_stmt(AST_NODE* node)
 {
 	char* func_name = node->semantic_value.const1->sc;
@@ -494,7 +509,6 @@ void gen_func_call_stmt(AST_NODE* node)
 		
 	}
 }
-void fill_place(int place, AST_NODE* node)
-{
-	node->place = place;
-}
+
+void gen_relop_expr_list(AST_NODE* node);
+void gen_assign_stmt_list(AST_NODE* node);
