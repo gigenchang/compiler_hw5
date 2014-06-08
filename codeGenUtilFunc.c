@@ -1,18 +1,16 @@
-#include<sdlib.h>
+#include<stdlib.h>
 #include<stdio.h>
 #include "header.h"
-
-extern FILE *output;
+#include "codeGenHeader.h"
 
 //TODO: 處理reg不夠的問題
 //TODO ARRAY ref offset問題
 
-
+	
 int float_compare_label_no = 0;
 int int_compare_label_no = 0;
 const char FLOAT_COMPARE_LABEL[] = "Float_Compare_Label_";
 const char INT_COMPARE_LABEL[] = "Int_Compare_Label_";
-
 
 int get_float_compare_label_no()
 {

@@ -1,64 +1,10 @@
 #include <stdio.h>
 #include <string.h>
 #include "header.h"
+#include "codeGenHeader.h"
 
-#define REG_SIZE 32
-#define FRAME_SIZE 64
-#define SIZE 4
-#define BUFFER_SIZE 32
-
-char *function_name;
 FILE *output;
 
-int reg[32] = {0};
-int freg[32] = {0};
-int ARoffset = -4;
-// Buffer
-int buffer_counter = 0;
-char label_buffer[BUFFER_SIZE][128];
-// Global counter
-int float_counter = 0;
-int exit_counter = 0;
-int else_counter = 0;
-int	test_counter = 0;
-int	exit_counter = 0;
-int	body_counter = 0;
-int	Inc_counter = 0;	
-
-void dump_buff();
-// Register related function
-int get_reg();
-int get_freg();
-int get_offset(SymbolTableEntry* entry);
-void free_reg(int free_id);
-void free_freg(int free_id);
-
-void gen_code(AST_NODE *proj);
-void gen_global_decl(AST_NODE *global_decl);
-void gen_decl_list(AST_NODE *decl_list);
-void gen_var_decl(AST_NODE *nodePtr);
-void gen_func_type_empty(AST_NODE *func_head);
-void gen_block(AST_NODE *block);
-void gen_stmt_list(AST_NODE *stmt_ptr);
-void gen_head(char* name);
-
-// variable declaration
-void gen_decl(AST_NODE* ID_node);
-void gen_array_decl(AST_NODE* ID_node);
-void gen_init_decl(AST_NODE* ID_node);
-
-// function declaration
-void gen_prologue(char* func_name);
-void gen_epilogue(char* name);
-
-// stmt generation
-void gen_assign_stmt();
-void gen_if_stmt(AST_NODE* node);
-void gen_for_stmt(AST_NODE* node);
-void gen_return_stmt(AST_NODE* node);
-void gen_func_call_stmt(AST_NODE* node);
-void gen_relop_expr_list(AST_NODE* node);
-void gen_assign_stmt_list(AST_NODE* node);
 
 void dump_buff()
 {
