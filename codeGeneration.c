@@ -227,7 +227,7 @@ void gen_head(char* name)
 }
 
 
-void gen_stmt(AST_NODE* node)
+void gen_stmt(AST_NODE* stmtNode)
 {
 	if(stmtNode->nodeType == NUL_NODE){
 		return;
@@ -236,21 +236,21 @@ void gen_stmt(AST_NODE* node)
 		gen_block(node);
 	}
 	else{
-		switch(node->semantic_value.stmtSemanticValue.kind){
+		switch(stmtNode->semantic_value.stmtSemanticValue.kind){
 			case IF_STMT:
-				gen_if_stmt();
+				gen_if_stmt(stmtNode);
 				break;
 			case FOR_STMT:
-				gen_for_stmt();
+				gen_for_stmt(stmtNode);
 				break;
 			case ASSIGN_STMT:
-				gen_assign_stmt();
+				gen_assign_stmt(stmtNode);
 				break;
 			case FUNCTION_CALL_STMT:
-				gen_func_call_stmt();
+				gen_func_call_stmt(stmtNode);
 				break;
 			case RETURN_STMT:
-				gen_return_stmt();
+				gen_return_stmt(stmtNode);
 				break;
 			default:
 				printf("Unhandled STMT type\n");
@@ -391,7 +391,8 @@ void gen_epilogue(char* name)
 	if (strcmp (name, "main") == 0) { 
 		fprintf(output, "li  $v0, 10\n");    //system call code 10 means exit
 		fprintf(output, "syscall\n"); 
-	} else { 
+	} 
+	else{ 
 		fprintf(output, "jr  $ra\n"); 
 	}
 	
@@ -464,7 +465,21 @@ void gen_for_stmt(AST_NODE* node)
 void gen_return_stmt(AST_NODE* node)
 {
 	AST_NODE* relop_expr = node->child;
-	if();
+	gen_expr(relop_expr);
+	int type = relop_expr->nodeType;
+	int reg = relop_expr->place;
+	
+	if(type == INT_TYPE){
+		fprintf(output, "\tmove\t$v0, $%d\n", reg);
+		free_reg(reg);
+	}
+	else if(type == FLOAT_TYPE){
+		fprintf(output, "\tmov.s\t$f0, $f%d\n", reg);
+		free_freg(reg);
+	}
+	else{
+		printf("Unhandled return type\n");
+	}
 }
 void gen_func_call_stmt(AST_NODE* node)
 {
