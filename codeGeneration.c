@@ -92,6 +92,7 @@ void gen_code(AST_NODE *proj)
 	}
 	dump_buff();	
 	fclose(output);
+	printf("Code generated!!\n");
 }
 
 void gen_global_decl(AST_NODE *global_decl)
@@ -158,7 +159,7 @@ void gen_func_type_empty(AST_NODE *func_head)
 	printf("IN FUNCTION [gen_func_type_empty]\n");
 	int ARoffset = -4;
 	AST_NODE *nodePtr = func_head->child->rightSibling;
-	char* func_name = nodePtr->semantic_value.const1->const_u.sc;
+	char* func_name = nodePtr->semantic_value.identifierSemanticValue.identifierName;
 //	Are these needed ?
 	if(strcmp("read", func_name) == 0){
 		// gen_read();
@@ -172,7 +173,7 @@ void gen_func_type_empty(AST_NODE *func_head)
 	gen_head(func_name);
 	gen_prologue(func_name);
 	fprintf(output, "_begin_%s:\n", func_name);
-	gen_block(nodePtr->rightSibling);
+	gen_block(nodePtr->rightSibling->rightSibling);
 	fprintf(output, "_end_%s:\n", func_name);
 	gen_epilogue(func_name);
 }
@@ -180,15 +181,16 @@ void gen_func_type_empty(AST_NODE *func_head)
 void gen_block(AST_NODE *block)
 {
 	printf("IN FUNCTION [gen_block]\n");
-	switch(block->child->dataType){
+	AST_NODE* block_child = block->child;
+	switch(block_child->nodeType){
 		case VARIABLE_DECL_LIST_NODE:
-			gen_decl_list(block->child);
-			if(block->child->rightSibling != NULL){
-				gen_stmt_list(block->child->rightSibling);
+			gen_decl_list(block_child->child);
+			if(block_child->rightSibling != NULL){
+				gen_stmt_list(block_child->rightSibling->child);
 			}
 			break;
 		case STMT_LIST_NODE:
-			gen_stmt_list(block->child);
+			gen_stmt_list(block_child->child);
 			break;
 		default:
 			printf("Unexperted block type\n");
