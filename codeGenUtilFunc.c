@@ -2,6 +2,7 @@
 #include<stdio.h>
 #include "header.h"
 #include "codeGenHeader.h"
+#include "symbolTable.h"
 
 //TODO: 處理reg不夠的問題
 //TODO ARRAY ref offset問題
@@ -27,19 +28,29 @@ int get_int_compare_label_no()
 
 void gen_write_call(AST_NODE* expr)
 {
-	int type = //想辦法get type;
+	int type = expr->dataType;
 	switch(type){
 		case INT_TYPE:
-			fprintf(output, "li    $v0, 1\n");
-			fprintf(output, "move  $a0, $%d\n", XXX Reg); //TODO
-			fprintf(output, "syscall\n");
-			freeReg(XXX Reg); //TODO not implement
-			break;
+			{
+				int reg_id = get_reg();
+				if (reg_id != -1){
+					fprintf(output, "li    $v0, 1\n");
+					fprintf(output, "move  $a0, $%d\n", reg_id); //TODO
+					fprintf(output, "syscall\n");
+					free_reg(reg_id);
+				}
+				break;
+			}
 		case FLOAT_TYPE:
-			fprintf(output, "li    $v0, 1\n");
-			fprintf(output, "mov.s $f12, $f%d\n", XXX fReg); //TODO
-			fprintf(output, "syscall\n");
-			freeFReg(XXX Reg); //TODO not implement
+			{
+				int reg_id = get_freg();
+				if (reg_id != -1){
+					fprintf(output, "li    $v0, 2\n");
+					fprintf(output, "mov.s $f12, $f%d\n", reg_id); //TODO
+					fprintf(output, "syscall\n");
+					free_freg(reg_id);
+				}
+			}
 			break;
 		case CONST_STRING_TYPE:
 			break;
@@ -77,23 +88,27 @@ int gen_read_call(int read_in_type)
 
 void visit_const(AST_NODE* const_value)
 {
-	CON_TYPE *val = const_value->semantic_value.const1;
+	CON_Type *val = const_value->semantic_value.const1;
 	
    	switch(val->const_type){
 		case INTEGERC:
-			int reg_id = get_reg();
-			if (reg_id != -1) {
-				const_value->place = reg_id;
-				fprintf(output, "li  $%d, %d\n", reg_id, val->const_u.intval);
+			{
+				int reg_id = get_reg();
+				if (reg_id != -1) {
+					const_value->place = reg_id;
+					fprintf(output, "li  $%d, %d\n", reg_id, val->const_u.intval);
+				}
+				break;
 			}
-			break;
 		case FLOATC:
-			int reg_id = get_freg();
-			if (reg_id != -1) {
-				const_value->place = reg_id;
-				fprintf(output, "li.s  $f%d, %f\n", reg_id, val->const_u.fval);
+			{
+				int reg_id = get_freg();
+				if (reg_id != -1) {
+					const_value->place = reg_id;
+					fprintf(output, "li.s  $f%d, %f\n", reg_id, val->const_u.fval);
+				}
+				break;
 			}
-			break;
 		case STRINGC:
 			printf("未實作gen load imm string\n");
 			break;
@@ -105,7 +120,7 @@ void visit_const(AST_NODE* const_value)
 void visit_var_ref(AST_NODE* id_node)
 {
 	//var可能是global或local
-	char* var_name = id_node->semantic_value.identifierSemanticValue->identifierName;
+	char* var_name = id_node->semantic_value.identifierSemanticValue.identifierName;
 	SymbolTableEntry* entry = id_node->semantic_value.identifierSemanticValue.symbolTableEntry;
 	int is_global = (entry->nestingLevel == 0);
 
@@ -113,34 +128,38 @@ void visit_var_ref(AST_NODE* id_node)
 		case(NORMAL_ID):
 			switch (id_node->dataType) {
 				case INT_TYPE:
-					int reg_id = get_reg();
-					if (reg_id != -1){
-						id_node->place = reg_id;
-						if (is_global) {
-							fprintf(output, "lw  $%d, _%s\n", reg_id, var_name);
-						} else {
-							fprintf(output, "lw  $%d, %d($fp)",  reg_id, entry->offset);
+					{
+						int reg_id = get_reg();
+						if (reg_id != -1){
+							id_node->place = reg_id;
+							if (is_global) {
+								fprintf(output, "lw  $%d, _%s\n", reg_id, var_name);
+							} else {
+								fprintf(output, "lw  $%d, %d($fp)",  reg_id, entry->offset);
+							}
 						}
+						break;
 					}
-					break;
 			    case FLOAT_TYPE:
-					int reg_id = get_freg();
-					if (reg_id != -1){
-						id_node->place = reg_id;
-						if (is_global) {
-							fprintf(output, "lw  $f%d, _%s\n", reg_id, var_name);
-						} else {
-							fprintf(output, "lw  $f%d, %d($fp)",  reg_id, entry->offset);
+					{
+						int reg_id = get_freg();
+						if (reg_id != -1){
+							id_node->place = reg_id;
+							if (is_global) {
+								fprintf(output, "lw  $f%d, _%s\n", reg_id, var_name);
+							} else {
+								fprintf(output, "lw  $f%d, %d($fp)",  reg_id, entry->offset);
+							}
 						}
+						break;
 					}
-					break;
 				default:
 					printf("visit_var_ref出現不是INT也不是FLOAT的normal id\n");	
 			}
 			break;
 		case(ARRAY_ID):
 			{
-				ArrayProperties arrayProperty = array_entry->attribute->attr.typeDescriptor->properties.arrayProperties;
+				ArrayProperties arrayProperty = entry->attribute->attr.typeDescriptor->properties.arrayProperties;
 
 				int current_dimension = 0;
 				AST_NODE* current_dimension_node = id_node->child;
@@ -152,7 +171,7 @@ void visit_var_ref(AST_NODE* id_node)
 						
 						int reg_id = get_reg();
 						if (reg_id != -1){
-							fprintf(output, "li  $%d, %d\n", reg_id, arrayProperty.dimension[current_dimension]);
+							fprintf(output, "li  $%d, %d\n", reg_id, arrayProperty.sizeInEachDimension[current_dimension]);
 							fprintf(output, "mul $%d, $%d, 4\n", reg_id, reg_id);  //乘上size=4
 							fprintf(output, "mul $%d, $%d, $%d\n", reg_id, reg_id, current_dimension_node->place);  //乘上[expr]的大小
 
@@ -165,31 +184,35 @@ void visit_var_ref(AST_NODE* id_node)
 					}
 					switch (id_node->dataType) {
 						case INT_TYPE:
-							int reg_id = get_reg();
-							if (reg_id != -1){
-								id_node->place = reg_id;
-								if (is_global) {
-									fprintf(output, "lw  $%d, _%s+%d($%d)\n", reg_id, var_name, entry->offset, total_offset_reg);
-								} else {
-									fprintf(output, "add $%d, $%d, $fp\n",  total_offset_reg, total_offset_reg);
-									fprintf(output, "add $%d, $%d, %d\n",  total_offset_reg, total_offset_reg, entry->offset);
-									fprintf(output, "lw  $%d, ($%d)\n",  reg_id, total_offset_reg);
+							{
+								int reg_id = get_reg();
+								if (reg_id != -1){
+									id_node->place = reg_id;
+									if (is_global) {
+										fprintf(output, "lw  $%d, _%s+%d($%d)\n", reg_id, var_name, entry->offset, total_offset_reg);
+									} else {
+										fprintf(output, "add $%d, $%d, $fp\n",  total_offset_reg, total_offset_reg);
+										fprintf(output, "add $%d, $%d, %d\n",  total_offset_reg, total_offset_reg, entry->offset);
+										fprintf(output, "lw  $%d, ($%d)\n",  reg_id, total_offset_reg);
+									}
 								}
+								break;
 							}
-							break;
 						case FLOAT_TYPE:
-							int reg_id = get_freg();
-							if (reg_id != -1){
-								id_node->place = reg_id;
-								if (is_global) {
-									fprintf(output, "l.s   $f%d, _%s+%d($%d)\n", reg_id, var_name, entry->offset, total_offset_reg);
-								} else {
-									fprintf(output, "add  $%d, $%d, $fp\n",  total_offset_reg, total_offset_reg);
-									fprintf(output, "add  $%d, $%d, %d\n",  total_offset_reg, total_offset_reg, entry->offset);
-									fprintf(output, "l.s  $f%d, ($%d)\n",  reg_id, total_offset_reg);
+							{
+								int reg_id = get_freg();
+								if (reg_id != -1){
+									id_node->place = reg_id;
+									if (is_global) {
+										fprintf(output, "l.s   $f%d, _%s+%d($%d)\n", reg_id, var_name, entry->offset, total_offset_reg);
+									} else {
+										fprintf(output, "add  $%d, $%d, $fp\n",  total_offset_reg, total_offset_reg);
+										fprintf(output, "add  $%d, $%d, %d\n",  total_offset_reg, total_offset_reg, entry->offset);
+										fprintf(output, "l.s  $f%d, ($%d)\n",  reg_id, total_offset_reg);
+									}
 								}
+								break;
 							}
-							break;
 						default:
 							printf("visit_var_ref出現不是INT也不是FLOAT的normal id\n");	
 					}
@@ -207,18 +230,20 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 	AST_NODE* func_name_node = func_call_stmt_node->child;
 	AST_NODE* func_para_node = func_name_node->rightSibling;
 
-	char* func_name = func_name_node->semantic_value.identifierSemanticValue->identifierName;
+	char* func_name = func_name_node->semantic_value.identifierSemanticValue.identifierName;
 	
 	switch (func_para_node->nodeType) {
 		case(NUL_NODE):
-			//無參數的function call
-			int reg_id = get_reg();
-			if (reg_id != -1) {
-				func_call_stmt_node->place = reg_id;	
-				fprintf(output, "jal  %s\n", func_name);
-				fprintf(output, "move $%d, $v0\n", reg_id);
+			{
+				//無參數的function call
+				int reg_id = get_reg();
+				if (reg_id != -1) {
+					func_call_stmt_node->place = reg_id;	
+					fprintf(output, "jal  %s\n", func_name);
+					fprintf(output, "move $%d, $v0\n", reg_id);
+				}
+				break;
 			}
-			break;
 		case(NONEMPTY_RELOP_EXPR_LIST_NODE):
 			//有參數的function call
 			break;
@@ -285,7 +310,7 @@ void visit_expr(AST_NODE* expr_node)
 								{
 									//如果左邊或右邊其中一個 == 0. 那就是0, 反之為1
 									int label_no = get_int_compare_label_no();
-									fprintf(output, "li  $%d, 0\n", reg_id, left_child->place);
+									fprintf(output, "li  $%d, 0\n", reg_id);
 									fprintf(output, "beqz $%d, %s%d\n", left_child->place, INT_COMPARE_LABEL, label_no);
 									fprintf(output, "beqz $%d, %s%d\n", right_child->place, INT_COMPARE_LABEL, label_no);
 									fprintf(output, "li  $%d, 1\n", reg_id);
@@ -296,7 +321,7 @@ void visit_expr(AST_NODE* expr_node)
 								{
 									//如果左邊或右邊其中一個 != 0. 那就是1, 反之為0
 									int label_no = get_int_compare_label_no();
-									fprintf(output, "li  $%d, 1\n", reg_id, left_child->place);
+									fprintf(output, "li  $%d, 1\n", reg_id);
 									fprintf(output, "bnez $%d, %s%d\n", left_child->place, INT_COMPARE_LABEL, label_no);
 									fprintf(output, "bnez $%d, %s%d\n", right_child->place, INT_COMPARE_LABEL, label_no);
 									fprintf(output, "li  $%d, 0\n", reg_id);
