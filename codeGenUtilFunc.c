@@ -186,22 +186,29 @@ void visit_var_ref(AST_NODE* id_node)
 				int total_offset_reg = get_reg();
 				if (total_offset_reg != -1) {
 					fprintf(output, "\tli  $%d,  0\n", total_offset_reg); //先把total offset初始化成0
+
 					while(current_dimension_node != NULL){
 						gen_expr(current_dimension_node);
-						
-						int reg_id = get_reg();
-						if (reg_id != -1){
-							fprintf(output, "\tli  $%d, %d\n", reg_id, arrayProperty.sizeInEachDimension[current_dimension]);
-							fprintf(output, "\tmul $%d, $%d, 4\n", reg_id, reg_id);  //乘上size=4
-							fprintf(output, "\tmul $%d, $%d, $%d\n", reg_id, reg_id, current_dimension_node->place);  //乘上[expr]的大小
-
-							fprintf(output, "\tadd $%d, $%d, $%d\n", total_offset_reg, total_offset_reg, reg_id);  //最後把結果加到total offset reg內
-							free_reg(reg_id);
+						//先加上目前維度的值
+						fprintf(output, "\tadd $%d, $%d, $%d\n", total_offset_reg, total_offset_reg, current_dimension_node->place);
+						free_reg(current_dimension_node->place);
+						if (current_dimension_node->rightSibling != NULL) {
+							//如果右邊還有維度的話
+							int reg_id = get_reg();
+							if (reg_id != -1){
+								//load出下一個維度的大小，並乘上去
+								fprintf(output, "\tli  $%d, %d\n", reg_id, arrayProperty.sizeInEachDimension[current_dimension+1]);
+								fprintf(output, "\tmul $%d, $%d, $%d\n", total_offset_reg, total_offset_reg, reg_id);
+								free_reg(reg_id);
+							}
+						} else {
+							//沒有的話就乘以四
+							fprintf(output, "\tmul $%d, $%d, 4\n", total_offset_reg, total_offset_reg);
 						}
-
 						current_dimension += 1;
 						current_dimension_node = current_dimension_node->rightSibling;
 					}
+					
 					switch (id_node->dataType) {
 						case INT_TYPE:
 							{
@@ -342,18 +349,22 @@ void gen_assign_stmt(AST_NODE* assign_stmt_node)
 					fprintf(output, "\tli  $%d, 0\n", total_offset_reg); //先把total offset初始化成0
 					while(current_dimension_node != NULL){
 						gen_expr(current_dimension_node);
-						
-						int reg_id = get_reg();
-						if (reg_id != -1){
-							fprintf(output, "\tli  $%d, %d\n", reg_id, arrayProperty.sizeInEachDimension[current_dimension]);
-							fprintf(output, "\tmul $%d, $%d, 4\n", reg_id, reg_id);  //乘上size=4
-							fprintf(output, "\tmul $%d, $%d, $%d\n", reg_id, reg_id, current_dimension_node->place);  //乘上[expr]的大小
-
-							fprintf(output, "\tadd $%d, $%d, $%d\n", total_offset_reg, total_offset_reg, reg_id);  //最後把結果加到total offset reg內
-							free_reg(reg_id);
-							free_reg(current_dimension_node->place);
+						//先加上目前維度的值
+						fprintf(output, "\tadd $%d, $%d, $%d\n", total_offset_reg, total_offset_reg, current_dimension_node->place);
+						free_reg(current_dimension_node->place);
+						if (current_dimension_node->rightSibling != NULL) {
+							//如果右邊還有維度的話
+							int reg_id = get_reg();
+							if (reg_id != -1){
+								//load出下一個維度的大小，並乘上去
+								fprintf(output, "\tli  $%d, %d\n", reg_id, arrayProperty.sizeInEachDimension[current_dimension+1]);
+								fprintf(output, "\tmul $%d, $%d, $%d\n", total_offset_reg, total_offset_reg, reg_id);
+								free_reg(reg_id);
+							}
+						} else {
+							//沒有的話就乘以四
+							fprintf(output, "\tmul $%d, $%d, 4\n", total_offset_reg, total_offset_reg);
 						}
-
 						current_dimension += 1;
 						current_dimension_node = current_dimension_node->rightSibling;
 					}
