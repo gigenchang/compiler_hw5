@@ -24,6 +24,12 @@ s.s  $f10, 12($sp)
 s.s  $f16, 8($sp)
 s.s  $f18, 4($sp)
 _begin_main:
+.data
+str_1: .asciiz "lalalala"
+.text
+li    $v0, 4
+la    $a0, str_1
+syscall
 _end_main:
 # epilogue sequence
 lw  $8,  64($sp)

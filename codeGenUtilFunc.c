@@ -58,7 +58,7 @@ void gen_write_call(AST_NODE* expr)
 			break;
 		case CONST_STRING_TYPE:
 			fprintf(output, "li    $v0, 4\n");
-			fprintf(output, "la    $a0, %s%d", STR_LABEL, expr->place); //str的label no是紀錄在expr->place中
+			fprintf(output, "la    $a0, %s%d\n", STR_LABEL, expr->place); //str的label no是紀錄在expr->place中
 			fprintf(output, "syscall\n");
 			free_reg(expr->place);
 			break;
@@ -122,7 +122,7 @@ void visit_const(AST_NODE* const_value)
 		case STRINGC:
 			const_value->place = get_str_label_no();  //!!!注意, str const value我們並不在place內存reg_id, 而是存str_label_no, 方便未來可以透過label取出
 			fprintf(output, ".data\n");
-			fprintf(output, "%s%d, .asciiz \"%s\"\n", STR_LABEL, const_value->place, val->const_u.sc);
+			fprintf(output, "%s%d: .asciiz %s\n", STR_LABEL, const_value->place, val->const_u.sc);
 			fprintf(output, ".text\n");
 			break;
 		default:
@@ -262,6 +262,8 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 		case(NONEMPTY_RELOP_EXPR_LIST_NODE):
 			if (!strcmp(func_name, "write")){
 				gen_write_call(func_para_node->child); //把參數的expr node傳進去
+			} else {
+				printf("不是write的function call\n");
 			}
 			//有參數的function call
 			break;
