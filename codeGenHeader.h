@@ -51,7 +51,7 @@ void visit_expr(AST_NODE* expr_node);
 void visit_function_call(AST_NODE* func_call_stmt_node);
 void visit_var_ref(AST_NODE* id_node);
 void visit_const(AST_NODE* const_value);
-int gen_read_call(int read_in_type);
+void gen_read_call(AST_NODE* func_node);
 void gen_write_call(AST_NODE* expr);
 int get_int_compare_label_no();
 int get_float_compare_label_no();

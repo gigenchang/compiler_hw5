@@ -68,30 +68,36 @@ void gen_write_call(AST_NODE* expr)
 }
 
 
-int gen_read_call(int read_in_type)
+void gen_read_call(AST_NODE* func_node)
 {
 	printf("[get_read_call]\n");
-	int reg_id;
-	switch(read_in_type){
+	switch(func_node->dataType){
 		case INT_TYPE:
+		{
+			int reg_id;
 			fprintf(output, "\tli   $v0, 5\n");
 			fprintf(output, "\tsyscall\n");
 			reg_id = get_reg(); //TODO not implement
+			func_node->place = reg_id;
 			fprintf(output, "\tmove $%d, $v0\n", reg_id);
+		}	
 			break;
 		case FLOAT_TYPE:
+		{
+			int freg_id;
 			fprintf(output, "\tli   $v0, 6\n");
 			fprintf(output, "\tsyscall\n");
-			reg_id = get_freg(); //TODO not implement
-			fprintf(output, "\tmov.s $f%d, $f0\n", reg_id);
+			freg_id = get_freg(); //TODO not implement
+			func_node->place = freg_id;
+			fprintf(output, "\tmov.s $f%d, $f0\n", freg_id);
 			break;
+		}
 		case CONST_STRING_TYPE:
 			printf("未實作read in string\n");
 			break;
 		default:
 			printf("未知的read call type\n");
 	}
-	return reg_id;
 }
 
 
@@ -247,25 +253,37 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 
 	char* func_name = func_name_node->semantic_value.identifierSemanticValue.identifierName;
 	if(strcmp(func_name, "read") == 0){
-		gen_read_call(INT_TYPE);
+		gen_read_call(func_call_stmt_node);
 		return;
 	}
 	else if(strcmp(func_name, "fread") == 0){
-		gen_read_call(FLOAT_TYPE);
+		gen_read_call(func_call_stmt_node);
 		return;
 	}
 	switch (func_para_node->nodeType) {
 		case(NUL_NODE):
-			{
 				//無參數的function call
+			if(func_para_node->dataType == INT_TYPE){
 				int reg_id = get_reg();
-				if (reg_id != -1) {
+				if(reg_id != -1) {
 					func_call_stmt_node->place = reg_id;	
 					fprintf(output, "\tjal  %s\n", func_name);
 					fprintf(output, "\tmove $%d, $v0\n", reg_id);
 				}
-				break;
 			}
+			else if(func_para_node->dataType == FLOAT_TYPE){
+				int freg_id = get_freg();
+				if(freg_id != -1) {
+					func_call_stmt_node->place = freg_id;	
+					fprintf(output, "\tjal  %s\n", func_name);
+					fprintf(output, "\tmov.s $f%d, $f12\n", freg_id);
+				}
+			}
+			else{
+				fprintf(output, "\tjal  %s\n", func_name);
+				printf("Unexpected function dataType\n");
+			}
+			break;
 		case(NONEMPTY_RELOP_EXPR_LIST_NODE):
 			if (!strcmp(func_name, "write")){
 				gen_write_call(func_para_node->child); //把參數的expr node傳進去
