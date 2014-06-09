@@ -394,7 +394,7 @@ void gen_epilogue(char* name)
 	}
 	
 	fprintf(output, "\n.data\n");
-	fprintf(output, "\t_framsize_%s: .word %d\n\n", name, FRAME_SIZE - ARoffset);
+	fprintf(output, "\t_framesize_of_%s: .word %d\n\n", name, FRAME_SIZE - ARoffset);
 
 }
 
