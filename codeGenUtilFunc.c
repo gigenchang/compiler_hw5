@@ -83,7 +83,7 @@ int gen_read_call(int read_in_type)
 			fprintf(output, "\tli   $v0, 6\n");
 			fprintf(output, "\tsyscall\n");
 			reg_id = get_freg(); //TODO not implement
-			fprintf(output, "\tmove $%d, $f0\n", reg_id);
+			fprintf(output, "\tmov.s $f%d, $f0\n", reg_id);
 			break;
 		case CONST_STRING_TYPE:
 			printf("未實作read in string\n");
@@ -149,7 +149,7 @@ void visit_var_ref(AST_NODE* id_node)
 							if (is_global) {
 								fprintf(output, "\tlw  $%d, _%s\n", reg_id, var_name);
 							} else {
-								fprintf(output, "\tlw  $%d, %d($fp)",  reg_id, entry->offset);
+								fprintf(output, "\tlw  $%d, %d($fp)\n",  reg_id, entry->offset);
 							}
 						}
 						break;
@@ -160,9 +160,9 @@ void visit_var_ref(AST_NODE* id_node)
 						if (reg_id != -1){
 							id_node->place = reg_id;
 							if (is_global) {
-								fprintf(output, "\tlw  $f%d, _%s\n", reg_id, var_name);
+								fprintf(output, "\tl.s  $f%d, _%s\n", reg_id, var_name);
 							} else {
-								fprintf(output, "\tlw  $f%d, %d($fp)",  reg_id, entry->offset);
+								fprintf(output, "\tl.s  $f%d, %d($fp)\n",  reg_id, entry->offset);
 							}
 						}
 						break;
@@ -246,7 +246,14 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 	AST_NODE* func_para_node = func_name_node->rightSibling;
 
 	char* func_name = func_name_node->semantic_value.identifierSemanticValue.identifierName;
-	
+	if(strcmp(func_name, "read") == 0){
+		gen_read_call(INT_TYPE);
+		return;
+	}
+	else if(strcmp(func_name, "fread") == 0){
+		gen_read_call(FLOAT_TYPE);
+		return;
+	}
 	switch (func_para_node->nodeType) {
 		case(NUL_NODE):
 			{
@@ -298,7 +305,7 @@ void gen_assign_stmt(AST_NODE* assign_stmt_node)
 					if (is_global) {
 						fprintf(output, "\ts.s  $f%d, _%s\n", right_node->place, var_name);
 					} else {
-						fprintf(output, "\ts.s  $f%d, %d($fp)",  right_node->place, entry->offset);
+						fprintf(output, "\ts.s  $f%d, %d($fp)\n",  right_node->place, entry->offset);
 					}
 					free_freg(right_node->place);
 					break;
@@ -314,7 +321,7 @@ void gen_assign_stmt(AST_NODE* assign_stmt_node)
 				AST_NODE* current_dimension_node = left_node->child;
 				int total_offset_reg = get_reg();
 				if (total_offset_reg != -1) {
-					fprintf(output, "\tli  $%d,  0\n", total_offset_reg); //先把total offset初始化成0
+					fprintf(output, "\tli  $%d, 0\n", total_offset_reg); //先把total offset初始化成0
 					while(current_dimension_node != NULL){
 						gen_expr(current_dimension_node);
 						
@@ -326,6 +333,7 @@ void gen_assign_stmt(AST_NODE* assign_stmt_node)
 
 							fprintf(output, "\tadd $%d, $%d, $%d\n", total_offset_reg, total_offset_reg, reg_id);  //最後把結果加到total offset reg內
 							free_reg(reg_id);
+							free_reg(current_dimension_node->place);
 						}
 
 						current_dimension += 1;
@@ -508,9 +516,9 @@ void visit_expr(AST_NODE* expr_node)
 										expr_node->place = reg_id;
 										int label_no = get_float_compare_label_no();
 										fprintf(output, "\tc.eq.s  $f%d, $f%d\n", left_child->place, right_child->place);
-										fprintf(output, "\tli  %d, 1\n", reg_id);
-										fprintf(output, "\tbc1t %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
-										fprintf(output, "\tli  %d, 0\n", reg_id);
+										fprintf(output, "\tli  $%d, 1\n", reg_id);
+										fprintf(output, "\tbc1t %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
+										fprintf(output, "\tli  $%d, 0\n", reg_id);
 										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
 									}
 									break;
@@ -525,9 +533,9 @@ void visit_expr(AST_NODE* expr_node)
 										expr_node->place = reg_id;
 										int label_no = get_float_compare_label_no();
 										fprintf(output, "\tc.lt.s  $f%d, $f%d\n", left_child->place, right_child->place);
-										fprintf(output, "\tli  %d, 1\n", reg_id);
-										fprintf(output, "\tbc1f %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
-										fprintf(output, "\tli  %d, 0\n", reg_id);
+										fprintf(output, "\tli  $%d, 1\n", reg_id);
+										fprintf(output, "\tbc1f %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
+										fprintf(output, "\tli  $%d, 0\n", reg_id);
 										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
 									}
 									break;
@@ -540,9 +548,9 @@ void visit_expr(AST_NODE* expr_node)
 										expr_node->place = reg_id;
 										int label_no = get_float_compare_label_no();
 										fprintf(output, "\tc.le.s  $f%d, $f%d\n", left_child->place, right_child->place);
-										fprintf(output, "\tli  %d, 1\n", reg_id);
-										fprintf(output, "\tbc1t %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
-										fprintf(output, "\tli  %d, 0\n", reg_id);
+										fprintf(output, "\tli  $%d, 1\n", reg_id);
+										fprintf(output, "\tbc1t %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
+										fprintf(output, "\tli  $%d, 0\n", reg_id);
 										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
 									}
 									break;
@@ -556,9 +564,9 @@ void visit_expr(AST_NODE* expr_node)
 										expr_node->place = reg_id;
 										int label_no = get_float_compare_label_no();
 										fprintf(output, "\tc.eq.s  $f%d, $f%d\n", left_child->place, right_child->place);
-										fprintf(output, "\tli  %d, 1\n", reg_id);
-										fprintf(output, "\tbc1f %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
-										fprintf(output, "\tli  %d, 0\n", reg_id);
+										fprintf(output, "\tli  $%d, 1\n", reg_id);
+										fprintf(output, "\tbc1f %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
+										fprintf(output, "\tli  $%d, 0\n", reg_id);
 										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
 									}
 									break;
@@ -572,9 +580,9 @@ void visit_expr(AST_NODE* expr_node)
 										expr_node->place = reg_id;
 										int label_no = get_float_compare_label_no();
 										fprintf(output, "\tc.le.s  $f%d, $f%d\n", left_child->place, right_child->place);
-										fprintf(output, "\tli  %d, 1\n", reg_id);
-										fprintf(output, "\tbc1f %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
-										fprintf(output, "\tli  %d, 0\n", reg_id);
+										fprintf(output, "\tli  $%d, 1\n", reg_id);
+										fprintf(output, "\tbc1f %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
+										fprintf(output, "\tli  $%d, 0\n", reg_id);
 										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
 									}
 									break;
@@ -588,9 +596,9 @@ void visit_expr(AST_NODE* expr_node)
 										expr_node->place = reg_id;
 										int label_no = get_float_compare_label_no();
 										fprintf(output, "\tc.lt.s  $f%d, $f%d\n", left_child->place, right_child->place);
-										fprintf(output, "\tli  %d, 1\n", reg_id);
-										fprintf(output, "\tbc1t %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
-										fprintf(output, "\tli  %d, 0\n", reg_id);
+										fprintf(output, "\tli  $%d, 1\n", reg_id);
+										fprintf(output, "\tbc1t %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
+										fprintf(output, "\tli  $%d, 0\n", reg_id);
 										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
 									}
 									break;
@@ -603,11 +611,11 @@ void visit_expr(AST_NODE* expr_node)
 										expr_node->place = int_reg_id; 
 										int label_no = get_float_compare_label_no();
 										fprintf(output, "\tli  $%d, 0\n", int_reg_id);
-										fprintf(output, "\tli.s $f%d, 0.0", reg_id);
+										fprintf(output, "\tli.s $f%d, 0.0\n", reg_id);
 										fprintf(output, "\tc.eq.s $f%d, $f%d\n", reg_id, left_child->place);
 										fprintf(output, "\tbc1f %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, (有child==0.0) 就直接執行label後的code
 										fprintf(output, "\tc.eq.s $f%d, $f%d\n", reg_id, right_child->place);
-										fprintf(output, "\tbc1f %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, (有child==0.0) 就直接執行label後的code
+										fprintf(output, "\tbc1f %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, (有child==0.0) 就直接執行label後的code
 										fprintf(output, "\tli  $%d, 1\n", int_reg_id);
 										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
 									}
@@ -620,11 +628,11 @@ void visit_expr(AST_NODE* expr_node)
 										expr_node->place = int_reg_id; 
 										int label_no = get_float_compare_label_no();
 										fprintf(output, "\tli  $%d, 1\n", int_reg_id);
-										fprintf(output, "\tli.s $f%d, 0.0", reg_id);
+										fprintf(output, "\tli.s $f%d, 0.0\n", reg_id);
 										fprintf(output, "\tc.eq.s $f%d, $f%d\n", reg_id, left_child->place);
-										fprintf(output, "\tbc1f %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是false, (有child!=0.0) 就直接執行label後的code
+										fprintf(output, "\tbc1f %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是false, (有child!=0.0) 就直接執行label後的code
 										fprintf(output, "\tc.eq.s $f%d, $f%d\n", reg_id, right_child->place);
-										fprintf(output, "\tbc1f %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是false, (有child!=0.0) 就直接執行label後的code
+										fprintf(output, "\tbc1f %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是false, (有child!=0.0) 就直接執行label後的code
 										fprintf(output, "\tli  $%d, 0\n", int_reg_id);
 										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
 									}
@@ -658,7 +666,7 @@ void visit_expr(AST_NODE* expr_node)
 								{
 									//如果  是0.0就變成1
 									//    不是0.0就變成0
-									fprintf(output, "\tli.s $f%d, 0.0", reg_id);
+									fprintf(output, "\tli.s $f%d, 0.0\n", reg_id);
 								
 									fprintf(output, "\tc.eq.s  $f%d, $f%d\n", reg_id, child->place);
 									free_freg(reg_id);
@@ -667,7 +675,7 @@ void visit_expr(AST_NODE* expr_node)
 										expr_node->place = reg_id;
 										int label_no = get_float_compare_label_no();
 										fprintf(output, "\tli  %d, 1\n", reg_id);
-										fprintf(output, "\tbc1t %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
+										fprintf(output, "\tbc1t %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
 										fprintf(output, "\tli  %d, 0\n", reg_id);
 										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
 									}
@@ -713,7 +721,7 @@ void gen_expr(AST_NODE* expr_node)
 			if (expr_node->semantic_value.stmtSemanticValue.kind == FUNCTION_CALL_STMT) {
 				visit_function_call(expr_node);
 			} else {
-				printf("gen_expr中出現無法判斷的STMT_NODE type");
+				printf("gen_expr中出現無法判斷的STMT_NODE type\n");
 			}
 			break;
 		default:

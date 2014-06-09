@@ -19,6 +19,7 @@ int	test_counter = 0;
 int	exit_counter = 0;
 int	body_counter = 0;
 int	Inc_counter = 0;	
+int true_counter = 0;
 
 void dump_buff()
 {
@@ -37,6 +38,7 @@ int get_reg()
 	int i;
 	for (i = 8; i<=25 ; i++) {
 		if (reg[i] == 0) {
+			reg[i] = 1;
 			return i;
 		}
 	}
@@ -53,6 +55,7 @@ int get_freg()
 			break;  // $f12, $14 preserved for parameter passing
 		} else {
 			if (freg[i] == 0) {
+				freg[i] = 1;
 				return i;
 			}
 		}
@@ -99,6 +102,7 @@ void gen_global_decl(AST_NODE *global_decl)
 {
 	printf("IN FUNCTION [gen_global_decl]\n");
 	if(global_decl->nodeType == VARIABLE_DECL_LIST_NODE){
+		fprintf(output, ".data\n");
 		gen_decl_list(global_decl->child);
 	}
 	else if(global_decl->semantic_value.declSemanticValue.kind == FUNCTION_DECL){
@@ -114,7 +118,6 @@ void gen_global_decl(AST_NODE *global_decl)
 void gen_decl_list(AST_NODE *decl_list)
 {
 	printf("IN FUNCTION [gen_decl_list]\n");
-	fprintf(output, ".data\n");
 	while(decl_list != NULL){
 		if(decl_list->semantic_value.declSemanticValue.kind == VARIABLE_DECL){
 				gen_var_decl(decl_list);
@@ -229,6 +232,9 @@ void gen_stmt(AST_NODE* stmtNode)
 	}
 	else{
 		switch(stmtNode->semantic_value.stmtSemanticValue.kind){
+			case WHILE_STMT:
+				gen_while_stmt(stmtNode);
+				break;
 			case IF_STMT:
 				gen_if_stmt(stmtNode);
 				break;
@@ -404,6 +410,23 @@ void gen_epilogue(char* name)
 
 }
 
+void gen_while_stmt(AST_NODE* node)
+{
+
+	printf("IN FUNCTION [gen_while_stmt]\n");
+	AST_NODE* test_expr = node->child;
+	AST_NODE* while_stmt = test_expr->rightSibling;
+
+	fprintf(output, "Ltrue_%d:\n", true_counter);
+	gen_expr(test_expr);
+	fprintf(output, "\tbeqz\t$%d, Lexit_%d\n", test_expr->place, exit_counter);
+	gen_stmt(while_stmt);
+	fprintf(output, "\tj Ltrue_%d\n", true_counter);
+	fprintf(output, "Lexit_%d:\n", exit_counter);
+	true_counter++;
+	exit_counter++;
+}
+
 void gen_if_stmt(AST_NODE* node)
 {
 	printf("IN FUNCTION [gen_if_stmt]\n");
@@ -411,21 +434,22 @@ void gen_if_stmt(AST_NODE* node)
 	AST_NODE* if_stmt = test_expr->rightSibling;
 	AST_NODE* else_stmt = if_stmt->rightSibling;
 
+	gen_expr(test_expr);
 	if(else_stmt != NULL){ // if-else case
 		fprintf(output, "\tbeqz\t$%d, Lelse_%d\n", test_expr->place, else_counter);
 		gen_stmt(if_stmt);
 		fprintf(output, "\tj Lexit_%d\n", exit_counter);
 
-		fprintf(output, "Lelse_%d\n:", else_counter);
+		fprintf(output, "Lelse_%d:\n", else_counter);
 		gen_stmt(else_stmt);
 
-		fprintf(output, "Lexit_%d\n:", exit_counter);
+		fprintf(output, "Lexit_%d:\n", exit_counter);
 	}
 	else{
 		fprintf(output, "\tbeqz\t$%d, Lexit_%d", test_expr->place, exit_counter);
 		gen_stmt(if_stmt);
 
-		fprintf(output, "Lexit_:%d\n", exit_counter);
+		fprintf(output, "Lexit_%d:\n", exit_counter);
 	}
 	free_reg(test_expr->place);
 	else_counter++;

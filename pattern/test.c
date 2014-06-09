@@ -1,12 +1,7 @@
 typedef int INT;
 
+int i1[5];
 
 int main() {
-	int i1;
-	int i2;
-	int i3;
-	float f1;
-	float f2;
-	float f3;
-	write("lalalala");
+	i1[3] = 1;
 }
