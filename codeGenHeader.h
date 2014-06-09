@@ -36,6 +36,7 @@ void gen_prologue(char* func_name);
 void gen_epilogue(char* name);
 
 // stmt generation
+void gen_while_stmt(AST_NODE* node);
 void gen_if_stmt(AST_NODE* node);
 void gen_for_stmt(AST_NODE* node);
 void gen_return_stmt(AST_NODE* node);
