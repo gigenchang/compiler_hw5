@@ -55,6 +55,6 @@ li  $v0, 10
 syscall
 
 .data
-	_framsize_main: .word 68
+	_framesize_of_main: .word 68
 
 .data
