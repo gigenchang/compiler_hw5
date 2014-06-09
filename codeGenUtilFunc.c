@@ -13,6 +13,9 @@ int int_compare_label_no = 0;
 const char FLOAT_COMPARE_LABEL[] = "Float_Compare_Label_";
 const char INT_COMPARE_LABEL[] = "Int_Compare_Label_";
 
+int str_label_no = 0;
+const char STR_LABEL[] = "str_";
+
 int get_float_compare_label_no()
 {
 	printf("[get_float_compare_label_no]\n");
@@ -27,35 +30,37 @@ int get_int_compare_label_no()
 	return int_compare_label_no;
 }
 
+int get_str_label_no()
+{
+	printf("[get_str_label_no]\n");
+	str_label_no += 1;
+	return str_label_no;
+}
 
 void gen_write_call(AST_NODE* expr)
 {
+	//expr是要被印出的expression node
 	printf("[get_write_call]\n");
+	gen_expr(expr);
 	int type = expr->dataType;
 	switch(type){
 		case INT_TYPE:
-			{
-				int reg_id = get_reg();
-				if (reg_id != -1){
-					fprintf(output, "li    $v0, 1\n");
-					fprintf(output, "move  $a0, $%d\n", reg_id); //TODO
-					fprintf(output, "syscall\n");
-					free_reg(reg_id);
-				}
-				break;
-			}
+			fprintf(output, "li    $v0, 1\n");
+			fprintf(output, "move  $a0, $%d\n", expr->place); 
+			fprintf(output, "syscall\n");
+			free_reg(expr->place);
+			break;
 		case FLOAT_TYPE:
-			{
-				int reg_id = get_freg();
-				if (reg_id != -1){
-					fprintf(output, "li    $v0, 2\n");
-					fprintf(output, "mov.s $f12, $f%d\n", reg_id); //TODO
-					fprintf(output, "syscall\n");
-					free_freg(reg_id);
-				}
-			}
+			fprintf(output, "li    $v0, 2\n");
+			fprintf(output, "mov.s $f12, $f%d\n", expr->place);
+			fprintf(output, "syscall\n");
+			free_freg(expr->place);
 			break;
 		case CONST_STRING_TYPE:
+			fprintf(output, "li    $v0, 4\n");
+			fprintf(output, "la    $a0, %s%d", STR_LABEL, expr->place); //str的label no是紀錄在expr->place中
+			fprintf(output, "syscall\n");
+			free_reg(expr->place);
 			break;
 		default:
 			printf("未知的write call type\n");
@@ -115,7 +120,10 @@ void visit_const(AST_NODE* const_value)
 				break;
 			}
 		case STRINGC:
-			printf("未實作gen load imm string\n");
+			const_value->place = get_str_label_no();  //!!!注意, str const value我們並不在place內存reg_id, 而是存str_label_no, 方便未來可以透過label取出
+			fprintf(output, ".data\n");
+			fprintf(output, "%s%d, .asciiz \"%s\"\n", STR_LABEL, const_value->place, val->const_u.sc);
+			fprintf(output, ".text\n");
 			break;
 		default:
 			printf("未知的gen_load_imm const value type\n");
@@ -252,6 +260,9 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 				break;
 			}
 		case(NONEMPTY_RELOP_EXPR_LIST_NODE):
+			if (!strcmp(func_name, "write")){
+				gen_write_call(func_para_node->child); //把參數的expr node傳進去
+			}
 			//有參數的function call
 			break;
 		default:
@@ -265,7 +276,90 @@ void gen_assign_stmt(AST_NODE* assign_stmt_node)
 	AST_NODE* left_node = assign_stmt_node->child;
 	AST_NODE* right_node = left_node->rightSibling;
 	gen_expr(right_node);
-	//最後記得要free掉右邊的reg
+	
+	char* var_name = left_node->semantic_value.identifierSemanticValue.identifierName;
+	SymbolTableEntry* entry = left_node->semantic_value.identifierSemanticValue.symbolTableEntry;
+	int is_global = (entry->nestingLevel == 0);
+
+	switch(left_node->semantic_value.identifierSemanticValue.kind){
+		case(NORMAL_ID):
+			switch (left_node->dataType) {
+				case INT_TYPE:
+					if (is_global) {
+						fprintf(output, "sw  $%d, _%s\n", right_node->place, var_name);
+					} else {
+						fprintf(output, "sw  $%d, %d($fp)\n",  right_node->place, entry->offset);
+					}
+					free_reg(right_node->place);
+					break;
+			    case FLOAT_TYPE:
+					if (is_global) {
+						fprintf(output, "s.s  $f%d, _%s\n", right_node->place, var_name);
+					} else {
+						fprintf(output, "s.s  $f%d, %d($fp)",  right_node->place, entry->offset);
+					}
+					free_freg(right_node->place);
+					break;
+				default:
+					printf("visit_var_ref出現不是INT也不是FLOAT的normal id\n");	
+			}
+			break;
+		case(ARRAY_ID):
+			{
+				ArrayProperties arrayProperty = entry->attribute->attr.typeDescriptor->properties.arrayProperties;
+
+				int current_dimension = 0;
+				AST_NODE* current_dimension_node = left_node->child;
+				int total_offset_reg = get_reg();
+				if (total_offset_reg != -1) {
+					fprintf(output, "li  $%d,  0\n", total_offset_reg); //先把total offset初始化成0
+					while(current_dimension_node != NULL){
+						gen_expr(current_dimension_node);
+						
+						int reg_id = get_reg();
+						if (reg_id != -1){
+							fprintf(output, "li  $%d, %d\n", reg_id, arrayProperty.sizeInEachDimension[current_dimension]);
+							fprintf(output, "mul $%d, $%d, 4\n", reg_id, reg_id);  //乘上size=4
+							fprintf(output, "mul $%d, $%d, $%d\n", reg_id, reg_id, current_dimension_node->place);  //乘上[expr]的大小
+
+							fprintf(output, "add $%d, $%d, $%d\n", total_offset_reg, total_offset_reg, reg_id);  //最後把結果加到total offset reg內
+							free_reg(reg_id);
+						}
+
+						current_dimension += 1;
+						current_dimension_node = current_dimension_node->rightSibling;
+					}
+					switch (left_node->dataType) {
+						case INT_TYPE:
+							if (is_global) {
+								fprintf(output, "sw  $%d, _%s+%d($%d)\n", right_node->place, var_name, entry->offset, total_offset_reg);
+							} else {
+								fprintf(output, "add $%d, $%d, $fp\n",  total_offset_reg, total_offset_reg);
+								fprintf(output, "add $%d, $%d, %d\n",  total_offset_reg, total_offset_reg, entry->offset);
+								fprintf(output, "sw  $%d, ($%d)\n",  right_node->place, total_offset_reg);
+							}
+							free_reg(right_node->place);
+							break;
+						case FLOAT_TYPE:
+							if (is_global) {
+								fprintf(output, "s.s   $f%d, _%s+%d($%d)\n", right_node->place, var_name, entry->offset, total_offset_reg);
+							} else {
+								fprintf(output, "add  $%d, $%d, $fp\n",  total_offset_reg, total_offset_reg);
+								fprintf(output, "add  $%d, $%d, %d\n",  total_offset_reg, total_offset_reg, entry->offset);
+								fprintf(output, "s.s  $f%d, ($%d)\n",  right_node->place, total_offset_reg);
+							}
+							free_freg(right_node->place);
+							break;
+						default:
+							printf("visit_var_ref出現不是INT也不是FLOAT的normal id\n");	
+					}
+					free_reg(total_offset_reg);
+				}
+				break;
+			}
+		default:
+			printf("visit_var_ref出現無法判斷為normal或array的id_node\n");
+	}
 }
 
 void visit_expr(AST_NODE* expr_node)
