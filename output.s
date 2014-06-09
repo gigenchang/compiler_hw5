@@ -24,17 +24,6 @@ s.s  $f10, 12($sp)
 s.s  $f16, 8($sp)
 s.s  $f18, 4($sp)
 _begin_main:
-.data
-jal  read
-move $8, $v0
-jal  read
-move $8, $v0
-jal  fread
-move $8, $v0
-jal  fread
-move $8, $v0
-li  $8, 0
-	move	$v0, $8
 _end_main:
 # epilogue sequence
 lw  $8,  64($sp)
