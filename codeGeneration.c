@@ -131,11 +131,11 @@ void gen_var_decl(AST_NODE *nodePtr)
 {
 	printf("IN FUNCTION [gen_var_decl]\n");
 	if(nodePtr->semantic_value.declSemanticValue.kind == VARIABLE_DECL){
-		while(nodePtr != NULL){
 		AST_NODE *temp = nodePtr->child->rightSibling;
+		while(temp != NULL){
 			if(temp->nodeType != IDENTIFIER_NODE)
 				printf("Expected to be ID_NODE\n");
-			switch(temp->dataType){
+			switch(temp->semantic_value.identifierSemanticValue.kind){
 				case NORMAL_ID:
 					gen_decl(temp);
 					break;
@@ -145,8 +145,11 @@ void gen_var_decl(AST_NODE *nodePtr)
 				case WITH_INIT_ID:
 					gen_init_decl(temp);
 					break;
+				default: 
+					printf("IS TYPE: %d\n", temp->dataType);
+					printf("Unexpected dataType\n");
 			}
-		nodePtr = nodePtr->rightSibling;
+		temp = temp->rightSibling;
 		}
 	}
 	else
@@ -276,7 +279,7 @@ void gen_array_decl(AST_NODE* ID_node)
 		size *= arrayProperty.sizeInEachDimension[count];
 	}
 	if(array_entry->nestingLevel == 0){
-		fprintf(output, "_%s: .space %d", ID_node->semantic_value.identifierSemanticValue.identifierName, size);
+		fprintf(output, "_%s: .space %d\n", ID_node->semantic_value.identifierSemanticValue.identifierName, size);
 	}
 	else{
 		array_entry->offset = ARoffset;
@@ -288,7 +291,7 @@ void gen_init_decl(AST_NODE* ID_node)
 {
 	printf("IN FUNCTION [gen_init_decl]\n");
 	SymbolTableEntry* entry = ID_node->semantic_value.identifierSemanticValue.symbolTableEntry;
-	AST_NODE* const_value = ID_node->rightSibling;
+	AST_NODE* const_value = ID_node->child;
 	CON_Type* value = const_value->semantic_value.const1;
 	if(value->const_type == INTEGERC){
 		if(entry->nestingLevel == 0){
@@ -325,37 +328,40 @@ void gen_init_decl(AST_NODE* ID_node)
 			buffer_counter++;
 		}
 	}
+	else{
+		printf("Unexpected const_type\n");
+	}
 }
 
 void gen_prologue(char* func_name)
 {
 	printf("IN FUNCTION [gen_prologue]\n");
 	fprintf(output, "# prologue sequence\n");
-	fprintf(output, "sw  $ra, 0($sp)\n");    //存return address
-	fprintf(output, "sw  $fp, -4($sp)\n");   //存現在的fp
-	fprintf(output, "add $fp, $sp, -4\n");   //改fp
-	fprintf(output, "add $sp, $sp, -8\n");   //改sp
-	fprintf(output, "lw  $v0, _framesize_of_%s\n", func_name);
-	fprintf(output, "sub $sp, $sp, $v0\n");  //移動sp,騰出空間用作push
-	fprintf(output, "sw  $8,  64($sp)\n");   //$t0   
-	fprintf(output, "sw  $9,  60($sp)\n"); 
-	fprintf(output, "sw  $10, 56($sp)\n"); 
-	fprintf(output, "sw  $11, 52($sp)\n"); 
-	fprintf(output, "sw  $12, 48($sp)\n"); 
-	fprintf(output, "sw  $13, 44($sp)\n"); 
-	fprintf(output, "sw  $14, 40($sp)\n"); 
-	fprintf(output, "sw  $15, 36($sp)\n");   //$t7
-	fprintf(output, "sw  $24, 32($sp)\n");   //$t8
-	fprintf(output, "sw  $25, 28($sp)\n");   //$t9
+	fprintf(output, "\tsw  $ra, 0($sp)\n");    //存return address
+	fprintf(output, "\tsw  $fp, -4($sp)\n");   //存現在的fp
+	fprintf(output, "\tadd $fp, $sp, -4\n");   //改fp
+	fprintf(output, "\tadd $sp, $sp, -8\n");   //改sp
+	fprintf(output, "\tlw  $v0, _framesize_of_%s\n", func_name);
+	fprintf(output, "\tsub $sp, $sp, $v0\n");  //移動sp,騰出空間用作push
+	fprintf(output, "\tsw  $8,  64($sp)\n");   //$t0   
+	fprintf(output, "\tsw  $9,  60($sp)\n"); 
+	fprintf(output, "\tsw  $10, 56($sp)\n"); 
+	fprintf(output, "\tsw  $11, 52($sp)\n"); 
+	fprintf(output, "\tsw  $12, 48($sp)\n"); 
+	fprintf(output, "\tsw  $13, 44($sp)\n"); 
+	fprintf(output, "\tsw  $14, 40($sp)\n"); 
+	fprintf(output, "\tsw  $15, 36($sp)\n");   //$t7
+	fprintf(output, "\tsw  $24, 32($sp)\n");   //$t8
+	fprintf(output, "\tsw  $25, 28($sp)\n");   //$t9
 
 	//使用f4,6,8,10,16,18作為float temporary reg, 原因見http://www.cs.iit.edu/~virgil/cs470/Labs/Lab4.pdf
 	//假設此次作業全部使用single float, 因此使用s.s
-	fprintf(output, "s.s  $f4, 24($sp)\n");   //$f4
-	fprintf(output, "s.s  $f6, 20($sp)\n");   //$f6
-	fprintf(output, "s.s  $f8, 16($sp)\n");   //$f8
-	fprintf(output, "s.s  $f10, 12($sp)\n");   //$f10
-	fprintf(output, "s.s  $f16, 8($sp)\n");   //$f16
-	fprintf(output, "s.s  $f18, 4($sp)\n");   //$f18
+	fprintf(output, "\ts.s  $f4, 24($sp)\n");   //$f4
+	fprintf(output, "\ts.s  $f6, 20($sp)\n");   //$f6
+	fprintf(output, "\ts.s  $f8, 16($sp)\n");   //$f8
+	fprintf(output, "\ts.s  $f10, 12($sp)\n");   //$f10
+	fprintf(output, "\ts.s  $f16, 8($sp)\n");   //$f16
+	fprintf(output, "\ts.s  $f18, 4($sp)\n");   //$f18
 }
 
 
@@ -363,34 +369,34 @@ void gen_epilogue(char* name)
 {
 	printf("IN FUNCTION [gen_epilogue]\n");
 	fprintf(output, "# epilogue sequence\n");
-	fprintf(output, "lw  $8,  64($sp)\n");   //$t0   
-	fprintf(output, "lw  $9,  60($sp)\n"); 
-	fprintf(output, "lw  $10, 56($sp)\n"); 
-	fprintf(output, "lw  $11, 52($sp)\n"); 
-	fprintf(output, "lw  $12, 48($sp)\n"); 
-	fprintf(output, "lw  $13, 44($sp)\n"); 
-	fprintf(output, "lw  $14, 40($sp)\n"); 
-	fprintf(output, "lw  $15, 36($sp)\n");   //$t7
-	fprintf(output, "lw  $24, 32($sp)\n");   //$t8
-	fprintf(output, "lw  $25, 28($sp)\n");   //$t9
+	fprintf(output, "\tlw  $8,  64($sp)\n");   //$t0   
+	fprintf(output, "\tlw  $9,  60($sp)\n"); 
+	fprintf(output, "\tlw  $10, 56($sp)\n"); 
+	fprintf(output, "\tlw  $11, 52($sp)\n"); 
+	fprintf(output, "\tlw  $12, 48($sp)\n"); 
+	fprintf(output, "\tlw  $13, 44($sp)\n"); 
+	fprintf(output, "\tlw  $14, 40($sp)\n"); 
+	fprintf(output, "\tlw  $15, 36($sp)\n");   //$t7
+	fprintf(output, "\tlw  $24, 32($sp)\n");   //$t8
+	fprintf(output, "\tlw  $25, 28($sp)\n");   //$t9
 
-	fprintf(output, "l.s  $f4, 24($sp)\n");   //$f4
-	fprintf(output, "l.s  $f6, 20($sp)\n");   //$f6
-	fprintf(output, "l.s  $f8, 16($sp)\n");   //$f8
-	fprintf(output, "l.s  $f10, 12($sp)\n");   //$f10
-	fprintf(output, "l.s  $f16, 8($sp)\n");   //$f16
-	fprintf(output, "l.s  $f18, 4($sp)\n");   //$f18
+	fprintf(output, "\tl.s  $f4, 24($sp)\n");   //$f4
+	fprintf(output, "\tl.s  $f6, 20($sp)\n");   //$f6
+	fprintf(output, "\tl.s  $f8, 16($sp)\n");   //$f8
+	fprintf(output, "\tl.s  $f10, 12($sp)\n");   //$f10
+	fprintf(output, "\tl.s  $f16, 8($sp)\n");   //$f16
+	fprintf(output, "\tl.s  $f18, 4($sp)\n");   //$f18
 	
-	fprintf(output, "lw   $ra, 4($fp)\n");   //load return address
-	fprintf(output, "add  $sp, $fp, 4\n");   //讓sp pop掉執行完的frame(也就是回到$fp+4)
-	fprintf(output, "lw   $fp, 0($fp)\n");   //load return pointer
+	fprintf(output, "\tlw   $ra, 4($fp)\n");   //load return address
+	fprintf(output, "\tadd  $sp, $fp, 4\n");   //讓sp pop掉執行完的frame(也就是回到$fp+4)
+	fprintf(output, "\tlw   $fp, 0($fp)\n");   //load return pointer
 
 	if (strcmp (name, "main") == 0) { 
-		fprintf(output, "li  $v0, 10\n");    //system call code 10 means exit
-		fprintf(output, "syscall\n"); 
+		fprintf(output, "\tli  $v0, 10\n");    //system call code 10 means exit
+		fprintf(output, "\tsyscall\n"); 
 	} 
 	else{ 
-		fprintf(output, "jr  $ra\n"); 
+		fprintf(output, "\tjr  $ra\n"); 
 	}
 	
 	fprintf(output, "\n.data\n");
