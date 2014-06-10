@@ -245,7 +245,12 @@ void visit_var_ref(AST_NODE* id_node)
 				while(current_dimension_node != NULL){
 					gen_expr(current_dimension_node);
 					//先加上目前維度的值
-					fprintf(output, "\tadd $%d, $%d, $%d\n", total_offset_reg, total_offset_reg, current_dimension_node->place);
+					if(current_dimension_node->place > 0)
+						fprintf(output, "\tadd $%d, $%d, $%d\n", total_offset_reg, total_offset_reg, current_dimension_node->place);
+					else{
+						gen_reg_buffer_code(current_dimension_node->place, 25);
+						fprintf(output, "\tadd $%d, $%d, $25\n", total_offset_reg, total_offset_reg);
+					}
 					free_reg(current_dimension_node->place);
 					if (current_dimension_node->rightSibling != NULL) {
 						//如果右邊還有維度的話
@@ -416,17 +421,37 @@ void gen_assign_stmt(AST_NODE* assign_stmt_node)
 			switch (left_node->dataType) {
 				case INT_TYPE:
 					if (is_global) {
-						fprintf(output, "\tsw  $%d, _%s\n", right_node->place, var_name);
+						if(right_node->place > 0)
+							fprintf(output, "\tsw  $%d, _%s\n", right_node->place, var_name);
+						else{
+							gen_reg_buffer_code(right_node->place, 24);
+							fprintf(output, "\tsw  $24, _%s\n", var_name);
+						}
 					} else {
-						fprintf(output, "\tsw  $%d, %d($fp)\n",  right_node->place, entry->offset);
+						if(right_node->place > 0)
+							fprintf(output, "\tsw  $%d, %d($fp)\n",  right_node->place, entry->offset);
+						else{
+							gen_reg_buffer_code(right_node->place, 24);
+							fprintf(output, "\tsw  $24, %d($fp)\n",  entry->offset);
+						}
 					}
 					free_reg(right_node->place);
 					break;
 			    case FLOAT_TYPE:
 					if (is_global) {
-						fprintf(output, "\ts.s  $f%d, _%s\n", right_node->place, var_name);
+						if(right_node->place > 0)
+							fprintf(output, "\ts.s  $f%d, _%s\n", right_node->place, var_name);
+						else{
+							gen_reg_buffer_code(right_node->place, 28);
+							fprintf(output, "\ts.s  $f28, _%s\n", var_name);
+						}
 					} else {
-						fprintf(output, "\ts.s  $f%d, %d($fp)\n",  right_node->place, entry->offset);
+						if(right_node->place > 0)
+							fprintf(output, "\ts.s  $f%d, %d($fp)\n",  right_node->place, entry->offset);
+						else{
+							gen_reg_buffer_code(right_node->place, 28);
+							fprintf(output, "\ts.s  $f28, %d($fp)\n", entry->offset);
+						}
 					}
 					free_freg(right_node->place);
 					break;
@@ -442,54 +467,88 @@ void gen_assign_stmt(AST_NODE* assign_stmt_node)
 				AST_NODE* current_dimension_node = left_node->child;
 				int total_offset_reg = get_reg();
 				if (total_offset_reg != -1) {
-					fprintf(output, "\tli  $%d, 0\n", total_offset_reg); //先把total offset初始化成0
-					while(current_dimension_node != NULL){
-						gen_expr(current_dimension_node);
-						//先加上目前維度的值
+					total_offset_reg = 24;
+				}
+				fprintf(output, "\tli  $%d, 0\n", total_offset_reg); //先把total offset初始化成0
+				while(current_dimension_node != NULL){
+					gen_expr(current_dimension_node);
+					//先加上目前維度的值
+					if(current_dimension_node->place > 0)
 						fprintf(output, "\tadd $%d, $%d, $%d\n", total_offset_reg, total_offset_reg, current_dimension_node->place);
-						free_reg(current_dimension_node->place);
-						if (current_dimension_node->rightSibling != NULL) {
-							//如果右邊還有維度的話
-							int reg_id = get_reg();
-							if (reg_id != -1){
-								//load出下一個維度的大小，並乘上去
-								fprintf(output, "\tli  $%d, %d\n", reg_id, arrayProperty.sizeInEachDimension[current_dimension+1]);
-								fprintf(output, "\tmul $%d, $%d, $%d\n", total_offset_reg, total_offset_reg, reg_id);
-								free_reg(reg_id);
+					else{
+						gen_reg_buffer_code(current_dimension_node->place, 25);
+						fprintf(output, "\tadd $%d, $%d, $25\n", total_offset_reg, total_offset_reg);
+					}
+					free_reg(current_dimension_node->place);
+					if (current_dimension_node->rightSibling != NULL) {
+						//如果右邊還有維度的話
+						int reg_id = get_reg();
+						if (reg_id != -1){
+							reg_id = 25;
+						}
+							//load出下一個維度的大小，並乘上去
+							fprintf(output, "\tli  $%d, %d\n", reg_id, arrayProperty.sizeInEachDimension[current_dimension+1]);
+							fprintf(output, "\tmul $%d, $%d, $%d\n", total_offset_reg, total_offset_reg, reg_id);
+							free_reg(reg_id);
+					} else {
+						//沒有的話就乘以四
+						fprintf(output, "\tmul $%d, $%d, 4\n", total_offset_reg, total_offset_reg);
+					}
+					current_dimension += 1;
+					current_dimension_node = current_dimension_node->rightSibling;
+				}
+				switch (left_node->dataType) {
+					case INT_TYPE:
+						if (is_global) {
+							if(right_node->place > 0)
+								fprintf(output, "\tsw  $%d, _%s+%d($%d)\n", right_node->place, var_name, entry->offset, total_offset_reg);
+							else{
+								gen_reg_buffer_code(right_node->place, 25);
+								fprintf(output, "\tsw  $25, _%s+%d($%d)\n", var_name, entry->offset, total_offset_reg);
 							}
 						} else {
-							//沒有的話就乘以四
-							fprintf(output, "\tmul $%d, $%d, 4\n", total_offset_reg, total_offset_reg);
-						}
-						current_dimension += 1;
-						current_dimension_node = current_dimension_node->rightSibling;
-					}
-					switch (left_node->dataType) {
-						case INT_TYPE:
-							if (is_global) {
-								fprintf(output, "\tsw  $%d, _%s+%d($%d)\n", right_node->place, var_name, entry->offset, total_offset_reg);
-							} else {
+							if(right_node->place > 0){
 								fprintf(output, "\tadd $%d, $%d, $fp\n",  total_offset_reg, total_offset_reg);
 								fprintf(output, "\tadd $%d, $%d, %d\n",  total_offset_reg, total_offset_reg, entry->offset);
 								fprintf(output, "\tsw  $%d, ($%d)\n",  right_node->place, total_offset_reg);
 							}
-							free_reg(right_node->place);
-							break;
-						case FLOAT_TYPE:
-							if (is_global) {
+							else{
+								fprintf(output, "\tadd $%d, $%d, $fp\n",  total_offset_reg, total_offset_reg);
+								fprintf(output, "\tadd $%d, $%d, %d\n",  total_offset_reg, total_offset_reg, entry->offset);
+								gen_reg_buffer_code(right_node->place, 25);
+								fprintf(output, "\tsw  $25, ($%d)\n", total_offset_reg);
+									
+							}
+						}
+						free_reg(right_node->place);
+						break;
+					case FLOAT_TYPE:
+						if (is_global) {
+							if(right_node->place > 0)
 								fprintf(output, "\ts.s   $f%d, _%s+%d($%d)\n", right_node->place, var_name, entry->offset, total_offset_reg);
-							} else {
+							else{
+								gen_reg_buffer_code(right_node->place, 30);
+								fprintf(output, "\ts.s   $f30, _%s+%d($%d)\n", var_name, entry->offset, total_offset_reg);
+							}
+						} else {
+							if(right_node->place > 0){
 								fprintf(output, "\tadd  $%d, $%d, $fp\n",  total_offset_reg, total_offset_reg);
 								fprintf(output, "\tadd  $%d, $%d, %d\n",  total_offset_reg, total_offset_reg, entry->offset);
 								fprintf(output, "\ts.s  $f%d, ($%d)\n",  right_node->place, total_offset_reg);
 							}
-							free_freg(right_node->place);
-							break;
-						default:
-							printf("visit_var_ref出現不是INT也不是FLOAT的normal id\n");	
-					}
-					free_reg(total_offset_reg);
+							else{
+								fprintf(output, "\tadd  $%d, $%d, $fp\n",  total_offset_reg, total_offset_reg);
+								fprintf(output, "\tadd  $%d, $%d, %d\n",  total_offset_reg, total_offset_reg, entry->offset);
+								gen_reg_buffer_code(right_node->place, 30);
+								fprintf(output, "\tsw  $f30, ($%d)\n", total_offset_reg);	
+							}
+						}
+						free_freg(right_node->place);
+						break;
+					default:
+						printf("visit_var_ref出現不是INT也不是FLOAT的normal id\n");	
 				}
+				free_reg(total_offset_reg);
 				break;
 			}
 		default:
