@@ -152,7 +152,7 @@ void visit_const(AST_NODE* const_value)
 				else{
 					const_value->place = ARoffset;
 					ARoffset -= 4;
-					fprintf(output, "\tli.s $28, %f\n", val->const_u.fval);
+					fprintf(output, "\tli.s $f28, %f\n", val->const_u.fval);
 					save_value_to_fp(28, const_value->place);
 				}
 				break;
@@ -361,7 +361,7 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 	switch (func_para_node->nodeType) {
 		case(NUL_NODE):
 				//無參數的function call
-			if(func_para_node->dataType == INT_TYPE){
+			if(func_call_stmt_node->dataType == INT_TYPE){
 				int reg_id = get_reg();
 				if(reg_id != -1) {
 					func_call_stmt_node->place = reg_id;	
@@ -376,18 +376,19 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 					save_value_to_fp(24, func_call_stmt_node->place);
 				}
 			}
-			else if(func_para_node->dataType == FLOAT_TYPE){
+			else if(func_call_stmt_node->dataType == FLOAT_TYPE){
+				printf("LLLL\n");
 				int freg_id = get_freg();
 				if(freg_id != -1) {
 					func_call_stmt_node->place = freg_id;	
 					fprintf(output, "\tjal  %s\n", func_name);
-					fprintf(output, "\tmov.s $f%d, $f12\n", freg_id);
+					fprintf(output, "\tmov.s $f%d, $f0\n", freg_id);
 				}
 				else{
 					func_call_stmt_node->place = ARoffset;
 					ARoffset -= 4;
 					fprintf(output, "\tjal  %s\n", func_name);
-					fprintf(output, "\tmov.s $f28, $f12\n");
+					fprintf(output, "\tmov.s $f28, $f0\n");
 					save_value_to_fp(28, func_call_stmt_node->place);
 				}
 			}

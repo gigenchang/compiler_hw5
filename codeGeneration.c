@@ -29,6 +29,7 @@ void dump_buff()
 	for(count = 0; count < buffer_counter; count++){
 		fprintf(output, "%s\n", label_buffer[count]);
 	}
+	printf("buffer:%d\n", buffer_counter);
 	buffer_counter = 0;
 }
 
@@ -282,6 +283,7 @@ void gen_decl(AST_NODE* ID_node)
 		}
 	}
 	else{						// local variable
+		printf("ARoffset:%d\n", ARoffset);
 		ARoffset -= (size - 4);	
 		entry->offset = ARoffset;
 		ARoffset -= 4;
@@ -315,7 +317,7 @@ void gen_init_decl(AST_NODE* ID_node)
 	SymbolTableEntry* entry = ID_node->semantic_value.identifierSemanticValue.symbolTableEntry;
 	AST_NODE* const_value = ID_node->child;
 	CON_Type* value = const_value->semantic_value.const1;
-	if(value->const_type == INTEGERC){
+	if(entry->attribute->attr.typeDescriptor->properties.dataType == INT_TYPE){
 		if(entry->nestingLevel == 0){
 			fprintf(output, "_%s: .word %d\n", ID_node->semantic_value.identifierSemanticValue.identifierName, value->const_u.intval);
 		}
@@ -331,7 +333,8 @@ void gen_init_decl(AST_NODE* ID_node)
 			free_reg(reg);
 		}
 	}
-	else if(value->const_type == FLOATC){
+	else if(entry->attribute->attr.typeDescriptor->properties.dataType == FLOAT_TYPE){
+		printf("lalalalalalallala\n");
 		if(entry->nestingLevel == 0){
 			fprintf(output, "_%s: .float %f\n", ID_node->semantic_value.identifierSemanticValue.identifierName, value->const_u.fval);
 		}
@@ -345,12 +348,15 @@ void gen_init_decl(AST_NODE* ID_node)
 			}
 			sprintf(label_buffer[float_counter], "_fp%d: .float %f", float_counter, value->const_u.fval);
 			fprintf(output, "\tl.s\t$f%d, _fp%d\n", freg, float_counter);
+			entry->offset = ARoffset;
+			ARoffset -= 4;
 			fprintf(output, "\ts.s\t$f%d, %d($fp)\n", freg, entry->offset);
 			free_freg(freg);
 			buffer_counter++;
 		}
 	}
 	else{
+		printf("OAQQ:%d\n", ID_node->dataType);
 		printf("Unexpected const_type\n");
 	}
 }
@@ -510,13 +516,25 @@ void gen_return_stmt(AST_NODE* node)
 	AST_NODE* relop_expr = node->child;
 	gen_expr(relop_expr);
 	int type = relop_expr->dataType;
-	int reg = relop_expr->place;
+	int reg;
 	
 	if(type == INT_TYPE){
+		if (relop_expr->place > 0) {
+			reg = relop_expr->place;
+		} else {
+			gen_reg_buffer_code(relop_expr->place, 24);
+			reg = 24;
+		}
 		fprintf(output, "\tmove\t$v0, $%d\n", reg);
 		free_reg(reg);
 	}
 	else if(type == FLOAT_TYPE){
+		if (relop_expr->place > 0) {
+			reg = relop_expr->place;
+		} else {
+			gen_reg_buffer_code(relop_expr->place, 30);
+			reg = 30;
+		}
 		fprintf(output, "\tmov.s\t$f0, $f%d\n", reg);
 		free_freg(reg);
 	}

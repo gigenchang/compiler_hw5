@@ -4,7 +4,7 @@
 #define REG_SIZE 32
 #define FRAME_SIZE 64
 #define SIZE 4
-#define BUFFER_SIZE 32
+#define BUFFER_SIZE 128
 
 extern FILE *output;
 extern int ARoffset;
