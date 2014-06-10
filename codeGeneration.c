@@ -36,7 +36,7 @@ int get_reg()
 {
 	printf("IN FUNCTION [get_reg]\n");
 	int i;
-	for (i = 8; i<=25 ; i++) {
+	for (i = 8; i < 25 ; i++) {
 		if (reg[i] == 0) {
 			reg[i] = 1;
 			return i;
@@ -50,7 +50,7 @@ int get_freg()
 {
 	printf("IN FUNCTION [get_freg]\n");
 	int i;
-	for (i = 4; i<=30 ; i+=2) {
+	for (i = 4; i < 30 ; i+=2) {
 		if (i == 12 || i == 14) {
 			break;  // $f12, $14 preserved for parameter passing
 		} else {
@@ -72,7 +72,9 @@ int get_offset(SymbolTableEntry* entry)
 void free_reg(int free_id)
 {
 	printf("IN FUNCTION [free_reg]\n");
-	reg[free_id] = 0;
+	if(free_id > 0){
+		reg[free_id] = 0;
+	}
 }
 
 void free_freg(int free_id)
@@ -120,7 +122,7 @@ void gen_decl_list(AST_NODE *decl_list)
 	printf("IN FUNCTION [gen_decl_list]\n");
 	while(decl_list != NULL){
 		if(decl_list->semantic_value.declSemanticValue.kind == VARIABLE_DECL){
-				gen_var_decl(decl_list);
+			gen_var_decl(decl_list);
 		}
 		else{
 			printf("Declaration node type unhandled\n");
@@ -536,6 +538,25 @@ void gen_return_stmt(AST_NODE* node)
 	}
 }
 
+void gen_reg_buffer_code(int offset, int reg)
+{
+	if(reg == 24 || reg == 25){
+		fprintf(output, "\tlw\t$%d, %d($fp)\n", reg, offset);
+	}
+	else{
+		fprintf(output, "\tl.s\t$f%d, %d($fp)\n", reg, offset);
+	}
+}
+
+void save_value_to_fp(int reg, int offset)
+{
+	if(reg == 24 || reg == 25){
+		fprintf(output, "\tsw\t%d($fp), $%d\n", offset, reg);
+	}
+	else{
+		fprintf(output, "\ts.s\t%d($fp), $f%d\n", offset, reg);
+	}	
+}
 
 void gen_relop_expr_list(AST_NODE* node)
 {

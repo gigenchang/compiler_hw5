@@ -46,13 +46,23 @@ void gen_write_call(AST_NODE* expr)
 	switch(type){
 		case INT_TYPE:
 			fprintf(output, "\tli    $v0, 1\n");
-			fprintf(output, "\tmove  $a0, $%d\n", expr->place); 
+			if(expr->place > 0)
+				fprintf(output, "\tmove  $a0, $%d\n", expr->place); 
+			else{
+				get_reg_buffer_code(expr->place, 24);
+				fprintf(output, "\tmove  $a0, $24\n"); 
+			}
 			fprintf(output, "\tsyscall\n");
 			free_reg(expr->place);
 			break;
 		case FLOAT_TYPE:
 			fprintf(output, "\tli    $v0, 2\n");
-			fprintf(output, "\tmov.s $f12, $f%d\n", expr->place);
+			if(expr->place > 0)
+				fprintf(output, "\tmov.s $f12, $f%d\n", expr->place);
+			else{
+				get_reg_buffer_code(expr->place, 28);
+				fprintf(output, "\tmov.s  $a0, $f28\n"); 
+			}
 			fprintf(output, "\tsyscall\n");
 			free_freg(expr->place);
 			break;
@@ -78,7 +88,12 @@ void gen_read_call(AST_NODE* func_node)
 			fprintf(output, "\tli   $v0, 5\n");
 			fprintf(output, "\tsyscall\n");
 			reg_id = get_reg(); //TODO not implement
-			func_node->place = reg_id;
+			if(reg_id > 0)
+				func_node->place = reg_id;
+			else{
+				func_node->place = ARoffset;
+				ARoffset -= 4;
+			}
 			fprintf(output, "\tmove $%d, $v0\n", reg_id);
 		}	
 			break;
@@ -88,7 +103,12 @@ void gen_read_call(AST_NODE* func_node)
 			fprintf(output, "\tli   $v0, 6\n");
 			fprintf(output, "\tsyscall\n");
 			freg_id = get_freg(); //TODO not implement
-			func_node->place = freg_id;
+			if(freg_id > 0)
+				func_node->place = freg_id;
+			else{
+				func_node->place = ARoffset;
+				ARoffset -= 4;
+			}
 			fprintf(output, "\tmov.s $f%d, $f0\n", freg_id);
 			break;
 		}
@@ -114,6 +134,12 @@ void visit_const(AST_NODE* const_value)
 					const_value->place = reg_id;
 					fprintf(output, "\tli  $%d, %d\n", reg_id, val->const_u.intval);
 				}
+				else{
+					const_value->place = ARoffset;
+					ARoffset -= 4;
+					fprintf(output, "\tli $24, %d\n", val->const_u.intval);
+					save_value_to_fp(24, const_value->place);
+				}
 				break;
 			}
 		case FLOATC:
@@ -122,6 +148,12 @@ void visit_const(AST_NODE* const_value)
 				if (reg_id != -1) {
 					const_value->place = reg_id;
 					fprintf(output, "\tli.s  $f%d, %f\n", reg_id, val->const_u.fval);
+				}
+				else{
+					const_value->place = ARoffset;
+					ARoffset -= 4;
+					fprintf(output, "\tli.s $28, %f\n", val->const_u.intval);
+					save_value_to_fp(28, const_value->place);
 				}
 				break;
 			}
@@ -158,6 +190,17 @@ void visit_var_ref(AST_NODE* id_node)
 								fprintf(output, "\tlw  $%d, %d($fp)\n",  reg_id, entry->offset);
 							}
 						}
+						else{
+							id_node->place = ARoffset;
+							ARoffset -= 4;
+							if (is_global) {
+								fprintf(output, "\tlw  $24, _%s\n", var_name);
+								save_value_to_fp(24, id_node->place);
+							} else {
+								fprintf(output, "\tlw  $24, %d($fp)\n", entry->offset);
+								save_value_to_fp(24, id_node->place);
+							}
+						}
 						break;
 					}
 			    case FLOAT_TYPE:
@@ -169,6 +212,17 @@ void visit_var_ref(AST_NODE* id_node)
 								fprintf(output, "\tl.s  $f%d, _%s\n", reg_id, var_name);
 							} else {
 								fprintf(output, "\tl.s  $f%d, %d($fp)\n",  reg_id, entry->offset);
+							}
+						}
+						else{
+							id_node->place = ARoffset;
+							ARoffset -= 4;
+							if (is_global) {
+								fprintf(output, "\tl.s  $f28, _%s\n", var_name);
+								save_value_to_fp(28, id_node->place);
+							} else {
+								fprintf(output, "\tl.s  $f28, %d($fp)\n", entry->offset);
+								save_value_to_fp(28, id_node->place);
 							}
 						}
 						break;
@@ -185,66 +239,94 @@ void visit_var_ref(AST_NODE* id_node)
 				AST_NODE* current_dimension_node = id_node->child;
 				int total_offset_reg = get_reg();
 				if (total_offset_reg != -1) {
-					fprintf(output, "\tli  $%d,  0\n", total_offset_reg); //先把total offset初始化成0
+					total_offset_reg = 24;
+				}
+				fprintf(output, "\tli  $%d,  0\n", total_offset_reg); //先把total offset初始化成0
+				while(current_dimension_node != NULL){
+					gen_expr(current_dimension_node);
+					//先加上目前維度的值
+					fprintf(output, "\tadd $%d, $%d, $%d\n", total_offset_reg, total_offset_reg, current_dimension_node->place);
+					free_reg(current_dimension_node->place);
+					if (current_dimension_node->rightSibling != NULL) {
+						//如果右邊還有維度的話
+						int reg_id = get_reg();
+						if (reg_id == -1){
+							reg_id = 25;
+						}
+							//load出下一個維度的大小，並乘上去
+						fprintf(output, "\tli  $%d, %d\n", reg_id, arrayProperty.sizeInEachDimension[current_dimension+1]);
+						fprintf(output, "\tmul $%d, $%d, $%d\n", total_offset_reg, total_offset_reg, reg_id);
+						free_reg(reg_id);
 
-					while(current_dimension_node != NULL){
-						gen_expr(current_dimension_node);
-						//先加上目前維度的值
-						fprintf(output, "\tadd $%d, $%d, $%d\n", total_offset_reg, total_offset_reg, current_dimension_node->place);
-						free_reg(current_dimension_node->place);
-						if (current_dimension_node->rightSibling != NULL) {
-							//如果右邊還有維度的話
+					} else {
+						//沒有的話就乘以四
+						fprintf(output, "\tmul $%d, $%d, 4\n", total_offset_reg, total_offset_reg);
+					}
+					current_dimension += 1;
+					current_dimension_node = current_dimension_node->rightSibling;
+				}
+				
+				switch (id_node->dataType) {
+					case INT_TYPE:
+						{
 							int reg_id = get_reg();
 							if (reg_id != -1){
-								//load出下一個維度的大小，並乘上去
-								fprintf(output, "\tli  $%d, %d\n", reg_id, arrayProperty.sizeInEachDimension[current_dimension+1]);
-								fprintf(output, "\tmul $%d, $%d, $%d\n", total_offset_reg, total_offset_reg, reg_id);
-								free_reg(reg_id);
+								id_node->place = reg_id;
+								if (is_global) {
+									fprintf(output, "\tlw  $%d, _%s+%d($%d)\n", reg_id, var_name, entry->offset, total_offset_reg);
+								} else {
+									fprintf(output, "\tadd $%d, $%d, $fp\n",  total_offset_reg, total_offset_reg);
+									fprintf(output, "\tadd $%d, $%d, %d\n",  total_offset_reg, total_offset_reg, entry->offset);
+									fprintf(output, "\tlw  $%d, ($%d)\n",  reg_id, total_offset_reg);
+								}
 							}
-						} else {
-							//沒有的話就乘以四
-							fprintf(output, "\tmul $%d, $%d, 4\n", total_offset_reg, total_offset_reg);
+							else{
+								id_node->place = ARoffset;
+								ARoffset -= 4;
+								if (is_global) {
+									fprintf(output, "\tlw  $25, _%s+%d($%d)\n", var_name, entry->offset, total_offset_reg);
+									save_value_to_fp(25, id_node->place);
+								} else {
+									fprintf(output, "\tadd $%d, $%d, $fp\n",  total_offset_reg, total_offset_reg);
+									fprintf(output, "\tadd $%d, $%d, %d\n",  total_offset_reg, total_offset_reg, entry->offset);
+									fprintf(output, "\tlw  $25, ($%d)\n", total_offset_reg);
+									save_value_to_fp(25, id_node->place);
+								}
+							}
+							break;
 						}
-						current_dimension += 1;
-						current_dimension_node = current_dimension_node->rightSibling;
-					}
-					
-					switch (id_node->dataType) {
-						case INT_TYPE:
-							{
-								int reg_id = get_reg();
-								if (reg_id != -1){
-									id_node->place = reg_id;
-									if (is_global) {
-										fprintf(output, "\tlw  $%d, _%s+%d($%d)\n", reg_id, var_name, entry->offset, total_offset_reg);
-									} else {
-										fprintf(output, "\tadd $%d, $%d, $fp\n",  total_offset_reg, total_offset_reg);
-										fprintf(output, "\tadd $%d, $%d, %d\n",  total_offset_reg, total_offset_reg, entry->offset);
-										fprintf(output, "\tlw  $%d, ($%d)\n",  reg_id, total_offset_reg);
-									}
+					case FLOAT_TYPE:
+						{
+							int reg_id = get_freg();
+							if (reg_id != -1){
+								id_node->place = reg_id;
+								if (is_global) {
+									fprintf(output, "\tl.s   $f%d, _%s+%d($%d)\n", reg_id, var_name, entry->offset, total_offset_reg);
+								} else {
+									fprintf(output, "\tadd  $%d, $%d, $fp\n",  total_offset_reg, total_offset_reg);
+									fprintf(output, "\tadd  $%d, $%d, %d\n",  total_offset_reg, total_offset_reg, entry->offset);
+									fprintf(output, "\tl.s  $f%d, ($%d)\n",  reg_id, total_offset_reg);
 								}
-								break;
 							}
-						case FLOAT_TYPE:
-							{
-								int reg_id = get_freg();
-								if (reg_id != -1){
-									id_node->place = reg_id;
-									if (is_global) {
-										fprintf(output, "\tl.s   $f%d, _%s+%d($%d)\n", reg_id, var_name, entry->offset, total_offset_reg);
-									} else {
-										fprintf(output, "\tadd  $%d, $%d, $fp\n",  total_offset_reg, total_offset_reg);
-										fprintf(output, "\tadd  $%d, $%d, %d\n",  total_offset_reg, total_offset_reg, entry->offset);
-										fprintf(output, "\tl.s  $f%d, ($%d)\n",  reg_id, total_offset_reg);
-									}
+							else{
+								id_node->place = ARoffset;
+								ARoffset -= 4;
+								if (is_global) {
+									fprintf(output, "\tl.s   $f30, _%s+%d($%d)\n", var_name, entry->offset, total_offset_reg);
+									save_value_to_fp(30, id_node->place);
+								} else {
+									fprintf(output, "\tadd  $%d, $%d, $fp\n",  total_offset_reg, total_offset_reg);
+									fprintf(output, "\tadd  $%d, $%d, %d\n",  total_offset_reg, total_offset_reg, entry->offset);
+									fprintf(output, "\tl.s  $f30, ($%d)\n",  total_offset_reg);
+									save_value_to_fp(30, id_node->place);
 								}
-								break;
 							}
-						default:
-							printf("visit_var_ref出現不是INT也不是FLOAT的normal id\n");	
-					}
-					free_reg(total_offset_reg);
+							break;
+						}
+					default:
+						printf("visit_var_ref出現不是INT也不是FLOAT的normal id\n");	
 				}
+				free_reg(total_offset_reg);
 				break;
 			}
 		default:
@@ -277,6 +359,13 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 					fprintf(output, "\tjal  %s\n", func_name);
 					fprintf(output, "\tmove $%d, $v0\n", reg_id);
 				}
+				else{
+					func_call_stmt_node->place = ARoffset;
+					ARoffset -= 4;
+					fprintf(output, "\tjal  %s\n", func_name);
+					fprintf(output, "\tmove $24, $v0\n");
+					save_value_to_fp(24, func_call_stmt_node->place);
+				}
 			}
 			else if(func_para_node->dataType == FLOAT_TYPE){
 				int freg_id = get_freg();
@@ -284,6 +373,13 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 					func_call_stmt_node->place = freg_id;	
 					fprintf(output, "\tjal  %s\n", func_name);
 					fprintf(output, "\tmov.s $f%d, $f12\n", freg_id);
+				}
+				else{
+					func_call_stmt_node->place = ARoffset;
+					ARoffset -= 4;
+					fprintf(output, "\tjal  %s\n", func_name);
+					fprintf(output, "\tmov.s $f28, $f12\n");
+					save_value_to_fp(28, func_call_stmt_node->place);
 				}
 			}
 			else{

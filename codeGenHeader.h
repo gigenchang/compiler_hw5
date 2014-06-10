@@ -8,7 +8,8 @@
 
 extern FILE *output;
 
-
+void save_value_to_fp(int reg, int offset);
+void gen_reg_buffer_code(int offset, int reg);
 void dump_buff();
 // Register related function
 int get_reg();
