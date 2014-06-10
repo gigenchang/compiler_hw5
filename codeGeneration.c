@@ -259,37 +259,63 @@ void gen_stmt(AST_NODE* stmtNode)
 void gen_decl(AST_NODE* ID_node)
 {
 	printf("IN FUNCTION [gen_decl]\n");
+	AST_NODE* type_node = ID_node->leftmostSibling;
+	SymbolTableEntry* type_entry = type_node->semantic_value.identifierSemanticValue.symbolTableEntry;
 	SymbolTableEntry* entry = ID_node->semantic_value.identifierSemanticValue.symbolTableEntry;
-	if(entry->nestingLevel == 0){ // global variable
-		if(entry->attribute->attr.typeDescriptor->properties.dataType == INT_TYPE){
-			fprintf(output, "_%s: .word 0\n", entry->name);
+	int size = SIZE;
+	int count = 0;
+	if(type_entry->attribute->attr.typeDescriptor->kind == ARRAY_TYPE_DESCRIPTOR){
+		ArrayProperties typeProperty = type_entry->attribute->attr.typeDescriptor->properties.arrayProperties;
+		for(count; count < typeProperty.dimension; count++){
+			size *= typeProperty.sizeInEachDimension[count];
 		}
-		if(entry->attribute->attr.typeDescriptor->properties.dataType == FLOAT_TYPE){
-			fprintf(output, "_%s: .float 0.0\n", entry->name);	
+	}
+	
+	if(entry->nestingLevel == 0){ // global variable
+		if(type_entry->attribute->attr.typeDescriptor->kind == ARRAY_TYPE_DESCRIPTOR){
+			fprintf(output, "_%s: .space %d\n", ID_node->semantic_value.identifierSemanticValue.identifierName, size);
+		}
+		else{
+			if(entry->attribute->attr.typeDescriptor->properties.dataType == INT_TYPE){
+				fprintf(output, "_%s: .word 0\n", entry->name);
+			}
+			if(entry->attribute->attr.typeDescriptor->properties.dataType == FLOAT_TYPE){
+				fprintf(output, "_%s: .float 0.0\n", entry->name);	
+			}
 		}
 	}
 	else{						// local variable
+		ARoffset -= (size - 4);	
 		entry->offset = ARoffset;
-		ARoffset -= 4;	
+		ARoffset -= 4;
 	}
 }
 
 void gen_array_decl(AST_NODE* ID_node)
 {	
 	printf("IN FUNCTION [gen_array_decl]\n");
+	AST_NODE* type_node = ID_node->leftmostSibling;
+	SymbolTableEntry* type_entry = type_node->semantic_value.identifierSemanticValue.symbolTableEntry;
 	SymbolTableEntry* array_entry = ID_node->semantic_value.identifierSemanticValue.symbolTableEntry;
 	int size = SIZE;
 	int count = 0;
+	if(type_entry->attribute->attr.typeDescriptor->kind == ARRAY_TYPE_DESCRIPTOR){
+		ArrayProperties typeProperty = type_entry->attribute->attr.typeDescriptor->properties.arrayProperties;
+		for(count; count < typeProperty.dimension; count++){
+			size *= typeProperty.sizeInEachDimension[count];
+		}
+	}
 	ArrayProperties arrayProperty = array_entry->attribute->attr.typeDescriptor->properties.arrayProperties;
-	for(count; count< arrayProperty.dimension; count++){
+	for(count = 0; count < arrayProperty.dimension; count++){
 		size *= arrayProperty.sizeInEachDimension[count];
 	}
 	if(array_entry->nestingLevel == 0){
 		fprintf(output, "_%s: .space %d\n", ID_node->semantic_value.identifierSemanticValue.identifierName, size);
 	}
 	else{
+		ARoffset -= (size - 4);
 		array_entry->offset = ARoffset;
-		ARoffset -= size;
+		ARoffset -= 4;
 	}
 }
 
