@@ -7,6 +7,7 @@
 #define BUFFER_SIZE 32
 
 extern FILE *output;
+extern int ARoffset;
 
 void save_value_to_fp(int reg, int offset);
 void gen_reg_buffer_code(int offset, int reg);

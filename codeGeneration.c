@@ -36,7 +36,7 @@ int get_reg()
 {
 	printf("IN FUNCTION [get_reg]\n");
 	int i;
-	for (i = 8; i < 25 ; i++) {
+	for (i = 8; i < 24 ; i++) {
 		if (reg[i] == 0) {
 			reg[i] = 1;
 			return i;
@@ -539,10 +539,10 @@ void gen_reg_buffer_code(int offset, int reg)
 void save_value_to_fp(int reg, int offset)
 {
 	if(reg == 24 || reg == 25){
-		fprintf(output, "\tsw\t%d($fp), $%d\n", offset, reg);
+		fprintf(output, "\tsw\t$%d, %d($fp)\n", reg, offset);
 	}
 	else{
-		fprintf(output, "\ts.s\t%d($fp), $f%d\n", offset, reg);
+		fprintf(output, "\ts.s\t$f%d, %d($fp)\n", reg, offset);
 	}	
 }
 

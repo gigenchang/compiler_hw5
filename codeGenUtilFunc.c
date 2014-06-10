@@ -49,7 +49,7 @@ void gen_write_call(AST_NODE* expr)
 			if(expr->place > 0)
 				fprintf(output, "\tmove  $a0, $%d\n", expr->place); 
 			else{
-				get_reg_buffer_code(expr->place, 24);
+				gen_reg_buffer_code(expr->place, 24);
 				fprintf(output, "\tmove  $a0, $24\n"); 
 			}
 			fprintf(output, "\tsyscall\n");
@@ -60,7 +60,7 @@ void gen_write_call(AST_NODE* expr)
 			if(expr->place > 0)
 				fprintf(output, "\tmov.s $f12, $f%d\n", expr->place);
 			else{
-				get_reg_buffer_code(expr->place, 28);
+				gen_reg_buffer_code(expr->place, 28);
 				fprintf(output, "\tmov.s  $a0, $f28\n"); 
 			}
 			fprintf(output, "\tsyscall\n");
@@ -152,7 +152,7 @@ void visit_const(AST_NODE* const_value)
 				else{
 					const_value->place = ARoffset;
 					ARoffset -= 4;
-					fprintf(output, "\tli.s $28, %f\n", val->const_u.intval);
+					fprintf(output, "\tli.s $28, %f\n", val->const_u.fval);
 					save_value_to_fp(28, const_value->place);
 				}
 				break;
@@ -239,11 +239,15 @@ void visit_var_ref(AST_NODE* id_node)
 				AST_NODE* current_dimension_node = id_node->child;
 				int total_offset_reg = get_reg();
 				if (total_offset_reg != -1) {
+				} else {
 					total_offset_reg = 24;
 				}
+
 				fprintf(output, "\tli  $%d,  0\n", total_offset_reg); //先把total offset初始化成0
 				while(current_dimension_node != NULL){
+					//TODO 存下total offset reg(if total_offset_reg == 24)
 					gen_expr(current_dimension_node);
+					//TODO load 回 total offset reg(if total_offset_reg == 24)
 					//先加上目前維度的值
 					if(current_dimension_node->place > 0)
 						fprintf(output, "\tadd $%d, $%d, $%d\n", total_offset_reg, total_offset_reg, current_dimension_node->place);
@@ -467,11 +471,16 @@ void gen_assign_stmt(AST_NODE* assign_stmt_node)
 				AST_NODE* current_dimension_node = left_node->child;
 				int total_offset_reg = get_reg();
 				if (total_offset_reg != -1) {
+				} else {
 					total_offset_reg = 24;
 				}
+
 				fprintf(output, "\tli  $%d, 0\n", total_offset_reg); //先把total offset初始化成0
 				while(current_dimension_node != NULL){
+					//TODO 如果total_offset = 24,那麼必須先把它存起來
 					gen_expr(current_dimension_node);
+					//TODO 然後在這裡把它load回去
+					
 					//先加上目前維度的值
 					if(current_dimension_node->place > 0)
 						fprintf(output, "\tadd $%d, $%d, $%d\n", total_offset_reg, total_offset_reg, current_dimension_node->place);
@@ -571,7 +580,9 @@ void visit_expr(AST_NODE* expr_node)
 					int reg_id = get_reg();
 					if (reg_id != -1){
 						expr_node->place = reg_id;
-					
+					} else {
+						reg_id = 24;    //reg不夠用，先暫時使用$24來做運算
+					}
 						switch(expr_node->semantic_value.exprSemanticValue.op.binaryOp){
 							case(BINARY_OP_ADD):
 								fprintf(output, "\tadd  $%d, $%d, $%d\n", reg_id, left_child->place, right_child->place);
@@ -629,6 +640,11 @@ void visit_expr(AST_NODE* expr_node)
 							default:
 								printf("visit_expr出現無法判斷的binary operator\n");
 						}
+					//}
+					if (reg_id == 24) {
+						expr_node->place = ARoffset;
+						save_value_to_fp(24, expr_node->place);
+						ARoffset -= 4;
 					}
 					free_reg(left_child->place);
 					free_reg(right_child->place);
@@ -642,7 +658,9 @@ void visit_expr(AST_NODE* expr_node)
 					int reg_id = get_reg();
 					if (reg_id != -1){
 						expr_node->place = reg_id;
-					
+					} else {
+						reg_id = 24;	
+					}
 						switch(expr_node->semantic_value.exprSemanticValue.op.unaryOp){
 							case(UNARY_OP_POSITIVE):
 								fprintf(output, "\tmove  $%d, $%d\n", reg_id, child->place);
@@ -658,6 +676,11 @@ void visit_expr(AST_NODE* expr_node)
 							default:
 								printf("visit_expr出現無法判斷的unary operator\n");
 						}
+					//}
+					if (reg_id == 24) {
+						expr_node->place = ARoffset;
+						save_value_to_fp(24, expr_node->place);
+						ARoffset -= 4;
 					}
 					free_reg(child->place);
 					break;
@@ -677,6 +700,9 @@ void visit_expr(AST_NODE* expr_node)
 					int reg_id = get_freg();
 					if (reg_id != -1){
 						expr_node->place = reg_id;
+					} else {
+						reg_id = 30;  //先暫時利用f30來做運算
+					}	
 					
 						switch(expr_node->semantic_value.exprSemanticValue.op.binaryOp){
 							case(BINARY_OP_ADD):
@@ -698,12 +724,20 @@ void visit_expr(AST_NODE* expr_node)
 
 									if (reg_id != -1){
 										expr_node->place = reg_id;
+									} else {
+										reg_id = 24;  //先暫時用$24來做運算
+									}
 										int label_no = get_float_compare_label_no();
 										fprintf(output, "\tc.eq.s  $f%d, $f%d\n", left_child->place, right_child->place);
 										fprintf(output, "\tli  $%d, 1\n", reg_id);
 										fprintf(output, "\tbc1t %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
 										fprintf(output, "\tli  $%d, 0\n", reg_id);
 										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
+									//}
+									if (reg_id == 24) {
+										expr_node->place = ARoffset;
+										save_value_to_fp(24, expr_node->place);
+										ARoffset -= 4;
 									}
 									break;
 								}
@@ -715,12 +749,20 @@ void visit_expr(AST_NODE* expr_node)
 
 									if (reg_id != -1) {
 										expr_node->place = reg_id;
+									} else {
+										reg_id = 24;  //先暫時用$24來做運算
+									}
 										int label_no = get_float_compare_label_no();
 										fprintf(output, "\tc.lt.s  $f%d, $f%d\n", left_child->place, right_child->place);
 										fprintf(output, "\tli  $%d, 1\n", reg_id);
 										fprintf(output, "\tbc1f %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
 										fprintf(output, "\tli  $%d, 0\n", reg_id);
 										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
+									//}
+									if (reg_id == 24) {
+										expr_node->place = ARoffset;
+										save_value_to_fp(24, expr_node->place);
+										ARoffset -= 4;
 									}
 									break;
 								}
@@ -730,12 +772,20 @@ void visit_expr(AST_NODE* expr_node)
 									reg_id = get_reg();
 									if (reg_id != -1) {
 										expr_node->place = reg_id;
+									} else {
+										reg_id = 24;  //先暫時用$24來做運算
+									}
 										int label_no = get_float_compare_label_no();
 										fprintf(output, "\tc.le.s  $f%d, $f%d\n", left_child->place, right_child->place);
 										fprintf(output, "\tli  $%d, 1\n", reg_id);
 										fprintf(output, "\tbc1t %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
 										fprintf(output, "\tli  $%d, 0\n", reg_id);
 										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
+									//}
+									if (reg_id == 24) {
+										expr_node->place = ARoffset;
+										save_value_to_fp(24, expr_node->place);
+										ARoffset -= 4;
 									}
 									break;
 								}
@@ -746,12 +796,20 @@ void visit_expr(AST_NODE* expr_node)
 									reg_id = get_reg();
 									if (reg_id != -1) {
 										expr_node->place = reg_id;
+									} else {
+										reg_id = 24;
+									}
 										int label_no = get_float_compare_label_no();
 										fprintf(output, "\tc.eq.s  $f%d, $f%d\n", left_child->place, right_child->place);
 										fprintf(output, "\tli  $%d, 1\n", reg_id);
 										fprintf(output, "\tbc1f %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
 										fprintf(output, "\tli  $%d, 0\n", reg_id);
 										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
+									//}
+									if (reg_id == 24) {
+										expr_node->place = ARoffset;
+										save_value_to_fp(24, expr_node->place);
+										ARoffset -= 4;
 									}
 									break;
 								}
@@ -762,12 +820,20 @@ void visit_expr(AST_NODE* expr_node)
 									reg_id = get_reg();
 									if (reg_id != -1) {
 										expr_node->place = reg_id;
+									} else {
+										reg_id = 24;
+									}
 										int label_no = get_float_compare_label_no();
 										fprintf(output, "\tc.le.s  $f%d, $f%d\n", left_child->place, right_child->place);
 										fprintf(output, "\tli  $%d, 1\n", reg_id);
 										fprintf(output, "\tbc1f %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
 										fprintf(output, "\tli  $%d, 0\n", reg_id);
 										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
+									//}
+									if (reg_id == 24) {
+										expr_node->place = ARoffset;
+										save_value_to_fp(24, expr_node->place);
+										ARoffset -= 4;
 									}
 									break;
 								}
@@ -778,12 +844,20 @@ void visit_expr(AST_NODE* expr_node)
 
 									if (reg_id != -1) {
 										expr_node->place = reg_id;
+									} else {
+										reg_id = 24;
+									}
 										int label_no = get_float_compare_label_no();
 										fprintf(output, "\tc.lt.s  $f%d, $f%d\n", left_child->place, right_child->place);
 										fprintf(output, "\tli  $%d, 1\n", reg_id);
 										fprintf(output, "\tbc1t %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
 										fprintf(output, "\tli  $%d, 0\n", reg_id);
 										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
+									//}
+									if (reg_id == 24) {
+										expr_node->place = ARoffset;
+										save_value_to_fp(24, expr_node->place);
+										ARoffset -= 4;
 									}
 									break;
 								}
@@ -793,6 +867,9 @@ void visit_expr(AST_NODE* expr_node)
 									int int_reg_id = get_reg();
 									if (int_reg_id != -1) {
 										expr_node->place = int_reg_id; 
+									} else {
+										int_reg_id = 24;
+									}
 										int label_no = get_float_compare_label_no();
 										fprintf(output, "\tli  $%d, 0\n", int_reg_id);
 										fprintf(output, "\tli.s $f%d, 0.0\n", reg_id);
@@ -802,6 +879,11 @@ void visit_expr(AST_NODE* expr_node)
 										fprintf(output, "\tbc1f %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, (有child==0.0) 就直接執行label後的code
 										fprintf(output, "\tli  $%d, 1\n", int_reg_id);
 										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
+									//}
+									if (int_reg_id == 24) {
+										expr_node->place = ARoffset;
+										save_value_to_fp(24, expr_node->place);
+										ARoffset -= 4;
 									}
 									break;
 								}
@@ -810,6 +892,9 @@ void visit_expr(AST_NODE* expr_node)
 									int int_reg_id = get_reg();
 									if (int_reg_id != -1) {
 										expr_node->place = int_reg_id; 
+									} else {
+										int_reg_id = 24;
+									}
 										int label_no = get_float_compare_label_no();
 										fprintf(output, "\tli  $%d, 1\n", int_reg_id);
 										fprintf(output, "\tli.s $f%d, 0.0\n", reg_id);
@@ -819,12 +904,22 @@ void visit_expr(AST_NODE* expr_node)
 										fprintf(output, "\tbc1f %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是false, (有child!=0.0) 就直接執行label後的code
 										fprintf(output, "\tli  $%d, 0\n", int_reg_id);
 										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
+									//}
+									if (int_reg_id == 24) {
+										expr_node->place = ARoffset;
+										save_value_to_fp(24, expr_node->place);
+										ARoffset -= 4;
 									}
 									break; 
 								}
 							default: 
 								printf("visit_expr出現無法判斷的binary operator\n");
 						}
+					//}
+					if (reg_id == 30) {
+						expr_node->place = ARoffset;
+						save_value_to_fp(30, expr_node->place);
+						ARoffset -= 4;
 					}
 					free_freg(left_child->place);
 					free_freg(right_child->place);
@@ -838,6 +933,9 @@ void visit_expr(AST_NODE* expr_node)
 					int reg_id = get_freg();
 					if (reg_id != -1){
 						expr_node->place = reg_id;
+					} else {
+						reg_id = 30;  //先暫時利用f30來做運算
+					}	
 					
 						switch(expr_node->semantic_value.exprSemanticValue.op.unaryOp){
 							case(UNARY_OP_POSITIVE):
@@ -857,18 +955,33 @@ void visit_expr(AST_NODE* expr_node)
 									reg_id = get_reg();
 									if (reg_id != -1){
 										expr_node->place = reg_id;
+									} else {
+										reg_id = 24;
+									}
 										int label_no = get_float_compare_label_no();
 										fprintf(output, "\tli  %d, 1\n", reg_id);
 										fprintf(output, "\tbc1t %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, 就直接執行label後的code
 										fprintf(output, "\tli  %d, 0\n", reg_id);
 										fprintf(output, "%s%d:\n", FLOAT_COMPARE_LABEL, label_no);
+									//}
+									if (reg_id == 24) {
+										expr_node->place = ARoffset;
+										save_value_to_fp(24, expr_node->place);
+										ARoffset -= 4;
 									}
+									
 									break;
 								}
 							default:
 								printf("visit_expr出現無法判斷的unary operator\n");
 						}
+					//}
+					if (reg_id == 30) {
+						expr_node->place = ARoffset;
+						save_value_to_fp(30, expr_node->place);
+						ARoffset -= 4;
 					}
+
 					free_freg(child->place);
 					break;
 				}
