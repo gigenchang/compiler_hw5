@@ -50,7 +50,7 @@ int get_freg()
 {
 	printf("IN FUNCTION [get_freg]\n");
 	int i;
-	for (i = 4; i < 30 ; i+=2) {
+	for (i = 4; i < 26 ; i+=2) {
 		if (i == 12 || i == 14) {
 			break;  // $f12, $14 preserved for parameter passing
 		} else {
@@ -528,7 +528,7 @@ void gen_return_stmt(AST_NODE* node)
 
 void gen_reg_buffer_code(int offset, int reg)
 {
-	if(reg == 24 || reg == 25){
+	if(reg == 24 || reg == 25 || reg == 26){
 		fprintf(output, "\tlw\t$%d, %d($fp)\n", reg, offset);
 	}
 	else{
