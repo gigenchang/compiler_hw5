@@ -575,7 +575,7 @@ void gen_for_relop_expr_list(AST_NODE* node, int exit_number)
 	while(relop_expr_node != NULL){
 		gen_expr(relop_expr_node);
 		fprintf(output, "\tbeqz\t$%d, Fexit_%d\n", relop_expr_node->place, exit_number);
-
+		free_reg(relop_expr_node->place);
 		relop_expr_node = relop_expr_node->rightSibling;
 	}
 }
