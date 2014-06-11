@@ -14,12 +14,10 @@ int buffer_counter = 0;
 char label_buffer[BUFFER_SIZE][128];
 // Global counter
 int float_counter = 0;
-int else_counter = 0;
-int	test_counter = 0;
-int	exit_counter = 0;
-int	body_counter = 0;
-int	Inc_counter = 0;	
-int true_counter = 0;
+int for_counter = 0;
+int while_counter = 0;
+int if_counter = 0;
+
 
 void dump_buff()
 {
@@ -438,15 +436,14 @@ void gen_while_stmt(AST_NODE* node)
 	printf("IN FUNCTION [gen_while_stmt]\n");
 	AST_NODE* test_expr = node->child;
 	AST_NODE* while_stmt = test_expr->rightSibling;
-
-	fprintf(output, "Ltrue_%d:\n", true_counter);
+	node->semantic_value.stmtSemanticValue.test_counter = while_counter;
+	while_counter++;
+	fprintf(output, "Wtrue_%d:\n", node->semantic_value.stmtSemanticValue.test_counter);
 	gen_expr(test_expr);
-	fprintf(output, "\tbeqz\t$%d, Lexit_%d\n", test_expr->place, exit_counter);
+	fprintf(output, "\tbeqz\t$%d, Wexit_%d\n", test_expr->place, node->semantic_value.stmtSemanticValue.test_counter);
 	gen_stmt(while_stmt);
-	fprintf(output, "\tj Ltrue_%d\n", true_counter);
-	fprintf(output, "Lexit_%d:\n", exit_counter);
-	true_counter++;
-	exit_counter++;
+	fprintf(output, "\tj Wtrue_%d\n", node->semantic_value.stmtSemanticValue.test_counter);
+	fprintf(output, "Wexit_%d:\n", node->semantic_value.stmtSemanticValue.test_counter);
 }
 
 void gen_if_stmt(AST_NODE* node)
@@ -455,27 +452,26 @@ void gen_if_stmt(AST_NODE* node)
 	AST_NODE* test_expr = node->child;
 	AST_NODE* if_stmt = test_expr->rightSibling;
 	AST_NODE* else_stmt = if_stmt->rightSibling;
-
+	node->semantic_value.stmtSemanticValue.test_counter = if_counter;
+	if_counter++;	
 	gen_expr(test_expr);
 	if(else_stmt != NULL){ // if-else case
-		fprintf(output, "\tbeqz\t$%d, Lelse_%d\n", test_expr->place, else_counter);
+		fprintf(output, "\tbeqz\t$%d, Lelse_%d\n", test_expr->place, node->semantic_value.stmtSemanticValue.test_counter);
 		gen_stmt(if_stmt);
-		fprintf(output, "\tj Lexit_%d\n", exit_counter);
+		fprintf(output, "\tj Lexit_%d\n", node->semantic_value.stmtSemanticValue.test_counter);
 
-		fprintf(output, "Lelse_%d:\n", else_counter);
+		fprintf(output, "Lelse_%d:\n", node->semantic_value.stmtSemanticValue.test_counter);
 		gen_stmt(else_stmt);
 
-		fprintf(output, "Lexit_%d:\n", exit_counter);
+		fprintf(output, "Lexit_%d:\n", node->semantic_value.stmtSemanticValue.test_counter);
 	}
 	else{
-		fprintf(output, "\tbeqz\t$%d, Lexit_%d", test_expr->place, exit_counter);
+		fprintf(output, "\tbeqz\t$%d, Lexit_%d", test_expr->place, node->semantic_value.stmtSemanticValue.test_counter);
 		gen_stmt(if_stmt);
 
-		fprintf(output, "Lexit_%d:\n", exit_counter);
+		fprintf(output, "Lexit_%d:\n", node->semantic_value.stmtSemanticValue.test_counter);
 	}
 	free_reg(test_expr->place);
-	else_counter++;
-	exit_counter++;		
 }
 
 void gen_for_stmt(AST_NODE* node)
@@ -485,29 +481,27 @@ void gen_for_stmt(AST_NODE* node)
 	AST_NODE* relop_expr = assign_expr_1->rightSibling;
 	AST_NODE* assign_expr_2 = relop_expr->rightSibling;
 	AST_NODE* statement = assign_expr_2->rightSibling;
+	node->semantic_value.stmtSemanticValue.test_counter = for_counter;
+	for_counter++;	
 
 	gen_assign_expr_list(assign_expr_1);
 
-	fprintf(output, "Test_%d:\n", test_counter);
+	fprintf(output, "FTest_%d:\n", node->semantic_value.stmtSemanticValue.test_counter);
 	gen_relop_expr_list(relop_expr);
-	fprintf(output, "\tbeqz\t$%d, Lexit_%d\n", relop_expr->place, exit_counter);
-	fprintf(output, "\tj Body_%d\n", body_counter);
+	fprintf(output, "\tbeqz\t$%d, Fexit_%d\n", relop_expr->place, node->semantic_value.stmtSemanticValue.test_counter);
+	fprintf(output, "\tj Body_%d\n", node->semantic_value.stmtSemanticValue.test_counter);
 
-	fprintf(output, "Inc_%d:\n", Inc_counter);
+	fprintf(output, "Inc_%d:\n", node->semantic_value.stmtSemanticValue.test_counter);
 	gen_assign_expr_list(assign_expr_2);
-	fprintf(output, "\tj TEST_%d\n", test_counter);
+	fprintf(output, "\tj FTest_%d\n", node->semantic_value.stmtSemanticValue.test_counter);
 
-	fprintf(output, "Body_%d:\n", body_counter);
+	fprintf(output, "Body_%d:\n", node->semantic_value.stmtSemanticValue.test_counter);
 	gen_stmt(statement);
-	fprintf(output, "\tj Inc_%d\n", Inc_counter);
+	fprintf(output, "\tj Inc_%d\n", node->semantic_value.stmtSemanticValue.test_counter);
 
-	fprintf(output, "Lexit_%d:\n", exit_counter);
+	fprintf(output, "Fexit_%d:\n", node->semantic_value.stmtSemanticValue.test_counter);
 
 	free_reg(relop_expr->place);
-	test_counter++;
-	exit_counter++;
-	body_counter++;
-	Inc_counter++;	
 }
 
 void gen_return_stmt(AST_NODE* node)
@@ -567,6 +561,11 @@ void save_value_to_fp(int reg, int offset)
 void gen_relop_expr_list(AST_NODE* node)
 {
 	printf("IN FUNCTION [gen_relop_expr_list]\n");
+	AST_NODE* relop_expr_node = node->child;
+	while(relop_expr_node != NULL){
+		gen_expr(relop_expr_node);
+		relop_expr_node = relop_expr_node->rightSibling;
+	}
 }
 void gen_assign_stmt_list(AST_NODE* node)
 {
@@ -575,4 +574,9 @@ void gen_assign_stmt_list(AST_NODE* node)
 void gen_assign_expr_list(AST_NODE* node)
 {
 	printf("IN FUNCTION [gen_assign_expr_list]\n");
+	AST_NODE* assign_list_node = node->child;
+	while(assign_list_node != NULL){
+		gen_assign_stmt(assign_list_node);
+		assign_list_node = assign_list_node->rightSibling;
+	}
 }

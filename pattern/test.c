@@ -1,4 +1,3 @@
-int ch[2][3][4];
 
 float bbb()
 {
@@ -6,11 +5,17 @@ float bbb()
 }
 
 int main() {
-
-	float b;
-	b = bbb();
-	ch[1][0][2] = 7;
-	write(ch[1][0][2]);
-	write(b);
-	write("\n");
+	int a;
+	a = 0;
+	while(a < 5){
+		int b = 0;
+		while(b < 10){
+			write(a);
+			write("\t");
+			write(b);
+			write("\n");
+			b = b + 1;
+		}
+		a = a + 1;
+	}
 }

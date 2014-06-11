@@ -97,6 +97,7 @@ typedef enum AST_TYPE
 typedef struct STMTSemanticValue
 {
     STMT_KIND kind;
+	int test_counter;
 } STMTSemanticValue;
 
 typedef struct EXPRSemanticValue

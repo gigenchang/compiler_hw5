@@ -933,7 +933,7 @@ void visit_expr(AST_NODE* expr_node)
 										fprintf(output, "\tli  $%d, 0\n", int_reg_id);
 										fprintf(output, "\tli.s $f%d, 0.0\n", reg_id);
 										fprintf(output, "\tc.eq.s $f%d, $f%d\n", reg_id, left_child->place);
-										fprintf(output, "\tbc1f %s%d", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, (有child==0.0) 就直接執行label後的code
+										fprintf(output, "\tbc1f %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, (有child==0.0) 就直接執行label後的code
 										fprintf(output, "\tc.eq.s $f%d, $f%d\n", reg_id, right_child->place);
 										fprintf(output, "\tbc1f %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, (有child==0.0) 就直接執行label後的code
 										fprintf(output, "\tli  $%d, 1\n", int_reg_id);
