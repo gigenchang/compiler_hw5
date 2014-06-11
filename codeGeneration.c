@@ -487,8 +487,8 @@ void gen_for_stmt(AST_NODE* node)
 	gen_assign_expr_list(assign_expr_1);
 
 	fprintf(output, "FTest_%d:\n", node->semantic_value.stmtSemanticValue.test_counter);
-	gen_relop_expr_list(relop_expr);
-	fprintf(output, "\tbeqz\t$%d, Fexit_%d\n", relop_expr->place, node->semantic_value.stmtSemanticValue.test_counter);
+	gen_for_relop_expr_list(relop_expr, node->semantic_value.stmtSemanticValue.test_counter);
+
 	fprintf(output, "\tj Body_%d\n", node->semantic_value.stmtSemanticValue.test_counter);
 
 	fprintf(output, "Inc_%d:\n", node->semantic_value.stmtSemanticValue.test_counter);
@@ -528,7 +528,7 @@ void gen_return_stmt(AST_NODE* node)
 		} else {
 			gen_reg_buffer_code(relop_expr->place, 30);
 			reg = 30;
-		}
+	}
 		fprintf(output, "\tmov.s\t$f0, $f%d\n", reg);
 		free_freg(reg);
 	}
@@ -567,6 +567,19 @@ void gen_relop_expr_list(AST_NODE* node)
 		relop_expr_node = relop_expr_node->rightSibling;
 	}
 }
+
+void gen_for_relop_expr_list(AST_NODE* node, int exit_number)
+{
+	printf("IN FUNCTION [gen_for_relop_expr_list]\n");
+	AST_NODE* relop_expr_node = node->child;
+	while(relop_expr_node != NULL){
+		gen_expr(relop_expr_node);
+		fprintf(output, "\tbeqz\t$%d, Fexit_%d\n", relop_expr_node->place, exit_number);
+
+		relop_expr_node = relop_expr_node->rightSibling;
+	}
+}
+
 void gen_assign_stmt_list(AST_NODE* node)
 {
 	printf("IN FUNCTION [gen_assign_stmt_list]\n");

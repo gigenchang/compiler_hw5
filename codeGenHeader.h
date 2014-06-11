@@ -43,6 +43,7 @@ void gen_if_stmt(AST_NODE* node);
 void gen_for_stmt(AST_NODE* node);
 void gen_return_stmt(AST_NODE* node);
 void gen_relop_expr_list(AST_NODE* node);
+void gen_for_relop_expr_list(AST_NODE* node, int exit_number);
 void gen_assign_stmt_list(AST_NODE* node);
 void gen_stmt(AST_NODE* stmtNode);
 void gen_assign_expr_list(AST_NODE* node);
