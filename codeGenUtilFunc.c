@@ -584,8 +584,6 @@ void visit_expr(AST_NODE* expr_node)
 				{
 					AST_NODE* left_child = expr_node->child;
 					AST_NODE* right_child = left_child->rightSibling;
-					gen_expr(left_child);
-					gen_expr(right_child);
 
 					int reg_id = get_reg();
 					if (reg_id != -1){
@@ -595,63 +593,85 @@ void visit_expr(AST_NODE* expr_node)
 					}
 						switch(expr_node->semantic_value.exprSemanticValue.op.binaryOp){
 							case(BINARY_OP_ADD):
+								gen_expr(left_child);
+								gen_expr(right_child);
 								turn_offset_into_reg(left_child, 25);
 								turn_offset_into_reg(right_child, 26);
 								fprintf(output, "\tadd  $%d, $%d, $%d\n", reg_id, left_child->place, right_child->place);
 								break;
 							case(BINARY_OP_SUB):
+								gen_expr(left_child);
+								gen_expr(right_child);
 								turn_offset_into_reg(left_child, 25);
 								turn_offset_into_reg(right_child, 26);
 								fprintf(output, "\tsub  $%d, $%d, $%d\n", reg_id, left_child->place, right_child->place);
 								break;
 							case(BINARY_OP_MUL):
+								gen_expr(left_child);
+								gen_expr(right_child);
 								turn_offset_into_reg(left_child, 25);
 								turn_offset_into_reg(right_child, 26);
 								fprintf(output, "\tmul  $%d, $%d, $%d\n", reg_id, left_child->place, right_child->place);
 								break;
 							case(BINARY_OP_DIV):
+								gen_expr(left_child);
+								gen_expr(right_child);
 								turn_offset_into_reg(left_child, 25);
 								turn_offset_into_reg(right_child, 26);
 								fprintf(output, "\tdiv  $%d, $%d, $%d\n", reg_id, left_child->place, right_child->place);
 								break;
 							case(BINARY_OP_EQ):
+								gen_expr(left_child);
+								gen_expr(right_child);
 								turn_offset_into_reg(left_child, 25);
 								turn_offset_into_reg(right_child, 26);
 								fprintf(output, "\tseq  $%d, $%d, $%d\n", reg_id, left_child->place, right_child->place);
 								break;
 							case(BINARY_OP_GE):
+								gen_expr(left_child);
+								gen_expr(right_child);
 								turn_offset_into_reg(left_child, 25);
 								turn_offset_into_reg(right_child, 26);
 								fprintf(output, "\tsge  $%d, $%d, $%d\n", reg_id, left_child->place, right_child->place);
 								break;
 							case(BINARY_OP_LE):
+								gen_expr(left_child);
+								gen_expr(right_child);
 								turn_offset_into_reg(left_child, 25);
 								turn_offset_into_reg(right_child, 26);
 								fprintf(output, "\tsle  $%d, $%d, $%d\n", reg_id, left_child->place, right_child->place);
 								break;
 							case(BINARY_OP_NE):
+								gen_expr(left_child);
+								gen_expr(right_child);
 								turn_offset_into_reg(left_child, 25);
 								turn_offset_into_reg(right_child, 26);
 								fprintf(output, "\tsne  $%d, $%d, $%d\n", reg_id, left_child->place, right_child->place);
 								break;
 							case(BINARY_OP_GT):
+								gen_expr(left_child);
+								gen_expr(right_child);
 								turn_offset_into_reg(left_child, 25);
 								turn_offset_into_reg(right_child, 26);
 								fprintf(output, "\tsgt  $%d, $%d, $%d\n", reg_id, left_child->place, right_child->place);
 								break;
 							case(BINARY_OP_LT):
+								gen_expr(left_child);
+								gen_expr(right_child);
 								turn_offset_into_reg(left_child, 25);
 								turn_offset_into_reg(right_child, 26);
 								fprintf(output, "\tslt  $%d, $%d, $%d\n", reg_id, left_child->place, right_child->place);
 								break;
 							case(BINARY_OP_AND):
 								{
+									gen_expr(left_child);
 									turn_offset_into_reg(left_child, 25);
-									turn_offset_into_reg(right_child, 26);
 									//如果左邊或右邊其中一個 == 0. 那就是0, 反之為1
 									int label_no = get_int_compare_label_no();
 									fprintf(output, "\tli  $%d, 0\n", reg_id);
 									fprintf(output, "\tbeqz $%d, %s%d\n", left_child->place, INT_COMPARE_LABEL, label_no);
+									gen_expr(right_child);
+									turn_offset_into_reg(right_child, 26);
 									fprintf(output, "\tbeqz $%d, %s%d\n", right_child->place, INT_COMPARE_LABEL, label_no);
 									fprintf(output, "\tli  $%d, 1\n", reg_id);
 									fprintf(output, "%s%d:\n", INT_COMPARE_LABEL, label_no);
@@ -659,12 +679,14 @@ void visit_expr(AST_NODE* expr_node)
 								}
 							case(BINARY_OP_OR):
 								{
+									gen_expr(left_child);
 									turn_offset_into_reg(left_child, 25);
-									turn_offset_into_reg(right_child, 26);
 									//如果左邊或右邊其中一個 != 0. 那就是1, 反之為0
 									int label_no = get_int_compare_label_no();
 									fprintf(output, "\tli  $%d, 1\n", reg_id);
 									fprintf(output, "\tbnez $%d, %s%d\n", left_child->place, INT_COMPARE_LABEL, label_no);
+									gen_expr(right_child);
+									turn_offset_into_reg(right_child, 26);
 									fprintf(output, "\tbnez $%d, %s%d\n", right_child->place, INT_COMPARE_LABEL, label_no);
 									fprintf(output, "\tli  $%d, 0\n", reg_id);
 									fprintf(output, "%s%d:\n", INT_COMPARE_LABEL, label_no);
@@ -731,8 +753,6 @@ void visit_expr(AST_NODE* expr_node)
 				{
 					AST_NODE* left_child = expr_node->child;
 					AST_NODE* right_child = left_child->rightSibling;
-					gen_expr(left_child);
-					gen_expr(right_child);
 
 					int reg_id = get_freg();
 					if (reg_id != -1){
@@ -743,27 +763,37 @@ void visit_expr(AST_NODE* expr_node)
 					
 						switch(expr_node->semantic_value.exprSemanticValue.op.binaryOp){
 							case(BINARY_OP_ADD):
+								gen_expr(left_child);
+								gen_expr(right_child);
 								turn_offset_into_reg(left_child, 28);
 								turn_offset_into_reg(right_child, 30);
 								fprintf(output, "\tadd.s  $f%d, $f%d, $f%d\n", reg_id, left_child->place, right_child->place);
 								break;
 							case(BINARY_OP_SUB):
+								gen_expr(left_child);
+								gen_expr(right_child);
 								turn_offset_into_reg(left_child, 28);
 								turn_offset_into_reg(right_child, 30);
 								fprintf(output, "\tsub.s  $f%d, $f%d, $f%d\n", reg_id, left_child->place, right_child->place);
 								break;
 							case(BINARY_OP_MUL):
+								gen_expr(left_child);
+								gen_expr(right_child);
 								turn_offset_into_reg(left_child, 28);
 								turn_offset_into_reg(right_child, 30);
 								fprintf(output, "\tmul.s  $f%d, $f%d, $f%d\n", reg_id, left_child->place, right_child->place);
 								break;
 							case(BINARY_OP_DIV):
+								gen_expr(left_child);
+								gen_expr(right_child);
 								turn_offset_into_reg(left_child, 28);
 								turn_offset_into_reg(right_child, 30);
 								fprintf(output, "\tdiv.s  $f%d, $f%d, $f%d\n", reg_id, left_child->place, right_child->place);
 								break;
 							case(BINARY_OP_EQ):
 								{
+									gen_expr(left_child);
+									gen_expr(right_child);
 									free_freg(reg_id); //把float reg還回去
 									reg_id = get_reg(); //重新要一個一般的reg
 
@@ -790,6 +820,8 @@ void visit_expr(AST_NODE* expr_node)
 								}
 							case(BINARY_OP_GE):
 								{
+									gen_expr(left_child);
+									gen_expr(right_child);
 									//>= is not <
 									free_freg(reg_id);
 									reg_id = get_reg();
@@ -817,6 +849,8 @@ void visit_expr(AST_NODE* expr_node)
 								}
 							case(BINARY_OP_LE):
 								{
+									gen_expr(left_child);
+									gen_expr(right_child);
 									free_freg(reg_id);
 									reg_id = get_reg();
 									if (reg_id != -1) {
@@ -842,6 +876,8 @@ void visit_expr(AST_NODE* expr_node)
 								}
 							case(BINARY_OP_NE):
 								{
+									gen_expr(left_child);
+									gen_expr(right_child);
 									//!= is not ==
 									free_freg(reg_id);
 									reg_id = get_reg();
@@ -868,6 +904,8 @@ void visit_expr(AST_NODE* expr_node)
 								}
 							case(BINARY_OP_GT):
 								{
+									gen_expr(left_child);
+									gen_expr(right_child);
 									//> is !<=
 									free_freg(reg_id);
 									reg_id = get_reg();
@@ -894,6 +932,8 @@ void visit_expr(AST_NODE* expr_node)
 								}
 							case(BINARY_OP_LT):
 								{
+									gen_expr(left_child);
+									gen_expr(right_child);
 									free_freg(reg_id);
 									reg_id = get_reg();
 
@@ -927,13 +967,15 @@ void visit_expr(AST_NODE* expr_node)
 									} else {
 										int_reg_id = 24;
 									}
+										gen_expr(left_child);
 										turn_offset_into_reg(left_child, 28);
-										turn_offset_into_reg(right_child, 30);
 										int label_no = get_float_compare_label_no();
 										fprintf(output, "\tli  $%d, 0\n", int_reg_id);
 										fprintf(output, "\tli.s $f%d, 0.0\n", reg_id);
 										fprintf(output, "\tc.eq.s $f%d, $f%d\n", reg_id, left_child->place);
 										fprintf(output, "\tbc1f %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, (有child==0.0) 就直接執行label後的code
+										gen_expr(right_child);
+										turn_offset_into_reg(right_child, 30);
 										fprintf(output, "\tc.eq.s $f%d, $f%d\n", reg_id, right_child->place);
 										fprintf(output, "\tbc1f %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是true, (有child==0.0) 就直接執行label後的code
 										fprintf(output, "\tli  $%d, 1\n", int_reg_id);
@@ -954,13 +996,15 @@ void visit_expr(AST_NODE* expr_node)
 									} else {
 										int_reg_id = 24;
 									}
+										gen_expr(left_child);
 										turn_offset_into_reg(left_child, 28);
-										turn_offset_into_reg(right_child, 30);
 										int label_no = get_float_compare_label_no();
 										fprintf(output, "\tli  $%d, 1\n", int_reg_id);
 										fprintf(output, "\tli.s $f%d, 0.0\n", reg_id);
 										fprintf(output, "\tc.eq.s $f%d, $f%d\n", reg_id, left_child->place);
 										fprintf(output, "\tbc1f %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是false, (有child!=0.0) 就直接執行label後的code
+										gen_expr(right_child);
+										turn_offset_into_reg(right_child, 30);
 										fprintf(output, "\tc.eq.s $f%d, $f%d\n", reg_id, right_child->place);
 										fprintf(output, "\tbc1f %s%d\n", FLOAT_COMPARE_LABEL, label_no); //如果結果是false, (有child!=0.0) 就直接執行label後的code
 										fprintf(output, "\tli  $%d, 0\n", int_reg_id);
