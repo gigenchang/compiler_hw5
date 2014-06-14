@@ -24,6 +24,7 @@ void gen_global_decl(AST_NODE *global_decl);
 void gen_decl_list(AST_NODE *decl_list);
 void gen_var_decl(AST_NODE *nodePtr);
 void gen_func_type_empty(AST_NODE *func_head);
+void gen_param(AST_NODE* param_node);
 void gen_block(AST_NODE *block);
 void gen_stmt_list(AST_NODE *stmt_ptr);
 void gen_head(char* name);

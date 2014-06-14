@@ -88,13 +88,16 @@ void gen_read_call(AST_NODE* func_node)
 			fprintf(output, "\tli   $v0, 5\n");
 			fprintf(output, "\tsyscall\n");
 			reg_id = get_reg(); //TODO not implement
-			if(reg_id > 0)
+			if(reg_id > 0){
 				func_node->place = reg_id;
+				fprintf(output, "\tmove $%d, $v0\n", reg_id);
+			}
 			else{
 				func_node->place = ARoffset;
 				ARoffset -= 4;
+				fprintf(output, "\tmove $25, $v0\n", reg_id);
+				save_value_to_fp(25, func_node->place);
 			}
-			fprintf(output, "\tmove $%d, $v0\n", reg_id);
 		}	
 			break;
 		case FLOAT_TYPE:
@@ -103,13 +106,16 @@ void gen_read_call(AST_NODE* func_node)
 			fprintf(output, "\tli   $v0, 6\n");
 			fprintf(output, "\tsyscall\n");
 			freg_id = get_freg(); //TODO not implement
-			if(freg_id > 0)
+			if(freg_id > 0){
 				func_node->place = freg_id;
+				fprintf(output, "\tmov.s $f%d, $f0\n", freg_id);
+			}
 			else{
 				func_node->place = ARoffset;
 				ARoffset -= 4;
+				fprintf(output, "\tmov.s $f28, $f0\n", freg_id);
+				save_value_to_fp(28, func_node->place);
 			}
-			fprintf(output, "\tmov.s $f%d, $f0\n", freg_id);
 			break;
 		}
 		case CONST_STRING_TYPE:
@@ -400,8 +406,76 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 		case(NONEMPTY_RELOP_EXPR_LIST_NODE):
 			if (!strcmp(func_name, "write")){
 				gen_write_call(func_para_node->child); //把參數的expr node傳進去
-			} else {
-				printf("不是write的function call\n");
+			}
+			else {
+				AST_NODE* func_param = func_para_node->child;
+				int param_offset = 0;
+				int param_num = func_name_node->semantic_value.identifierSemanticValue.symbolTableEntry->attribute->attr.functionSignature->parametersCount;
+				while(func_param != NULL){
+					gen_expr(func_param);
+					param_offset += 4;
+					if(func_param->dataType == INT_TYPE){
+						if(func_param->place >0)
+							fprintf(output, "\tsw\t$%d, %d($fp)\n", func_param->place, ARoffset - FRAME_SIZE - param_num * 4 + param_offset - 4);
+						else{
+							gen_reg_buffer_code(func_param->place, 25);
+							fprintf(output, "\tsw\t$25, %d($fp)\n", ARoffset - FRAME_SIZE - param_num * 4 + param_offset - 4);
+						}
+					}
+					else if(func_param->dataType == FLOAT_TYPE){
+						if(func_param->place >0)
+							fprintf(output, "\ts.s\t$f%d, %d($sp)\n", func_param->place, ARoffset - FRAME_SIZE - param_num * 4 + param_offset - 4);
+						else{
+							gen_reg_buffer_code(func_param->place, 25);
+							fprintf(output, "\ts.s\t$f25, %d($sp)\n", ARoffset - FRAME_SIZE - param_num * 4 + param_offset - 4);
+						}
+					}
+					else{
+						printf("func_param: %d\n", func_param->dataType);
+						printf("Unexpected data type\n");
+					}
+					func_param = func_param->rightSibling;	
+				}
+				fprintf(output,	"\tli\t$24, %d\n", param_offset);
+				fprintf(output, "\tsub\t$sp, $sp, $24\n");
+				if(func_call_stmt_node->dataType == INT_TYPE){
+					int reg_id = get_reg();
+					if(reg_id != -1) {
+						func_call_stmt_node->place = reg_id;	
+						fprintf(output, "\tjal  %s\n", func_name);
+						fprintf(output, "\tmove $%d, $v0\n", reg_id);
+					}
+					else{
+						func_call_stmt_node->place = ARoffset;
+						ARoffset -= 4;
+						fprintf(output, "\tjal  %s\n", func_name);
+						fprintf(output, "\tmove $24, $v0\n");
+						save_value_to_fp(24, func_call_stmt_node->place);
+					}
+				}
+				else if(func_call_stmt_node->dataType == FLOAT_TYPE){
+					printf("LLLL\n");
+					int freg_id = get_freg();
+					if(freg_id != -1) {
+						func_call_stmt_node->place = freg_id;	
+						fprintf(output, "\tjal  %s\n", func_name);
+						fprintf(output, "\tmov.s $f%d, $f0\n", freg_id);
+					}
+					else{
+						func_call_stmt_node->place = ARoffset;
+						ARoffset -= 4;
+						fprintf(output, "\tjal  %s\n", func_name);
+						fprintf(output, "\tmov.s $f28, $f0\n");
+						save_value_to_fp(28, func_call_stmt_node->place);
+					}
+				}
+				else{
+					fprintf(output, "\tjal  %s\n", func_name);
+					printf("Unexpected function dataType\n");
+				}
+				fprintf(output,	"\tli\t$24, %d\n", param_offset);
+				fprintf(output, "\tadd\t$sp, $sp, $24\n");
+				break;
 			}
 			//有參數的function call
 			break;

@@ -185,11 +185,23 @@ void gen_func_type_empty(AST_NODE *func_head)
 	}
 //	
 	gen_head(func_name);
+	gen_param(nodePtr->rightSibling);
 	gen_prologue(func_name);
 	fprintf(output, "_begin_%s:\n", func_name);
 	gen_block(nodePtr->rightSibling->rightSibling);
 	fprintf(output, "_end_%s:\n", func_name);
 	gen_epilogue(func_name);
+}
+
+void gen_param(AST_NODE* param_node)
+{
+	int param_offset = 8;
+	AST_NODE* func_param = param_node->child;
+	while(func_param != NULL){
+		func_param->child->rightSibling->semantic_value.identifierSemanticValue.symbolTableEntry->offset = param_offset;
+		param_offset += 4;
+		func_param = func_param->rightSibling;
+	}
 }
 
 void gen_block(AST_NODE *block)
