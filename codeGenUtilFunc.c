@@ -438,6 +438,7 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 						printf("func_param: %d\n", func_param->dataType);
 						printf("Unexpected data type\n");
 					}
+					free_reg(func_param->place);
 					func_param = func_param->rightSibling;	
 					currentParamter = currentParamter->next;
 				}
@@ -506,10 +507,12 @@ void convert_int_to_float(AST_NODE* expr_node)
 		if (freg != -1) {
 			fprintf(output, "\tmtc1  $%d, $f%d\n", expr_node->place, freg); //copy reg to freg verbatimly
 			fprintf(output, "\tcvt.s.w  $f%d, $f%d\n", freg, freg);          //so need convert
+			free_reg(expr_node->place);	
 			expr_node->place = freg;
 		} else {		
 			fprintf(output, "\tmtc1  $%d, $f28\n", expr_node->place); //copy left to freg verbatimly
 			fprintf(output, "\tcvt.s.w  $f28, $f28\n");          //so need convert
+			free_reg(expr_node->place);	
 			expr_node->place = ARoffset;
 			fprintf(output, "\ts.s  $f28, %d($fp)\n", expr_node->place);
 			ARoffset -= 4;
