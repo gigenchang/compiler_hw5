@@ -1,11 +1,11 @@
 .text
-FA:
+test:
 # prologue sequence
 	sw  $ra, 0($sp)
 	sw  $fp, -4($sp)
 	add $fp, $sp, -4
 	add $sp, $sp, -8
-	lw  $v0, _framesize_of_FA
+	lw  $v0, _framesize_of_test
 	sub $sp, $sp, $v0
 	sw  $8,  64($sp)
 	sw  $9,  60($sp)
@@ -23,78 +23,29 @@ FA:
 	s.s  $f10, 12($sp)
 	s.s  $f16, 8($sp)
 	s.s  $f18, 4($sp)
-_begin_FA:
-	lw  $8, 8($fp)
-	mtc1  $8, $f4
-	cvt.s.w  $f4, $f4
-	s.s  $f4, -4($fp)
-	l.s  $f6, -4($fp)
-	l.s  $f8, -4($fp)
-	mul.s  $f4, $f6, $f8
-	sw  $4, -808($fp)
-	lw  $10, 8($fp)
-	lw  $11, -808($fp)
-	sgt  $9, $10, $11
-	beqz	$9, Lelse_0
-	li.s  $f6, 0.000000
-	s.s  $f6, -4($fp)
-	j Lexit_0
-Lelse_0:
-	li.s  $f6, 1.000000
-	s.s  $f6, -4($fp)
-Lexit_0:
-	li  $9, 0
+_begin_test:
+	l.s	$f4, _fp0
+	s.s	$f4, -4($fp)
+	lw  $9, 8($fp)
 	mtc1  $9, $f6
 	cvt.s.w  $f6, $f6
-	sw  $6, -812($fp)
-FTest_0:
-	lw  $11, -812($fp)
-	lw  $12, 8($fp)
-	slt  $10, $11, $12
-	beqz	$10, Fexit_0
-	j Body_0
-Inc_0:
-	lw  $11, -812($fp)
-	li  $12, 1
-	add  $10, $11, $12
-	mtc1  $10, $f8
-	cvt.s.w  $f8, $f8
-	sw  $8, -812($fp)
-	j FTest_0
-Body_0:
-	l.s  $f28, -4($fp)
-	s.s	$f28, -816($fp)
-	li  $8, 10
-	mtc1  $8, $f28
-	cvt.s.w  $f28, $f28
-	s.s  $f28, -820($fp)
-	l.s	$f28, -816($fp)
-	l.s	$f30, -820($fp)
-	add.s  $f10, $f28, $f30
-	li  $11, 0
-	lw  $12, -812($fp)
-	add $11, $11, $12
-	li  $25, 20
-	mul $11, $11, $25
-	lw  $13, -812($fp)
-	add $11, $11, $13
-	mul $11, $11, 4
-	add  $11, $11, $fp
-	add  $11, $11, -804
-	s.s  $f10, ($11)
-	j Inc_0
-Fexit_0:
-	lw  $11, -808($fp)
-	l.s  $f28, 12($fp)
-	s.s	$f28, -824($fp)
-	mtc1  $11, $f28
-	cvt.s.w  $f28, $f28
-	s.s  $f28, -828($fp)
-	l.s	$f28, -828($fp)
-	l.s	$f30, -824($fp)
-	add.s  $f10, $f28, $f30
-	move	$v0, $10
-_end_FA:
+	li  $8, 1
+	li.s $f4, 0.0
+	c.eq.s $f4, $f6
+	bc1f Float_Compare_Label_1
+	l.s  $f8, 12($fp)
+	c.eq.s $f4, $f8
+	bc1f Float_Compare_Label_1
+	li  $8, 0
+Float_Compare_Label_1:
+	s.s  $f8, -8($fp)
+	l.s  $f6, -4($fp)
+	li    $v0, 2
+	mov.s $f12, $f6
+	syscall
+	l.s  $f6, -8($fp)
+	mov.s	$f0, $f6
+_end_test:
 # epilogue sequence
 	lw  $8,  64($sp)
 	lw  $9,  60($sp)
@@ -118,7 +69,7 @@ _end_FA:
 	jr  $ra
 
 .data
-	_framesize_of_FA: .word 896
+	_framesize_of_test: .word 76
 
 .text
 main:
@@ -146,23 +97,106 @@ main:
 	s.s  $f16, 8($sp)
 	s.s  $f18, 4($sp)
 _begin_main:
-	li  $10, 2
-	sw	$10, -904($fp)
-	li.s $f28, 0.400000
-	s.s	$f28, -832($fp)
-	lw	$25, -832($fp)
-	s.s	$f25, -904($sp)
+	li	$10, 3
+	sw	$10, -12($fp)
+	l.s	$f6, _fp0
+	s.s	$f6, -16($fp)
+	li  $10, 6
+	sw	$10, -92($fp)
+	li.s  $f6, 3.000000
+	s.s	$f6, -88($fp)
 	li	$24, 8
 	sub	$sp, $sp, $24
-	jal  FA
-	move $13, $v0
+	jal  test
+	mov.s $f8, $f0
 	li	$24, 8
 	add	$sp, $sp, $24
-	li    $v0, 1
-	move  $a0, $13
+	li    $v0, 2
+	mov.s $f12, $f8
 	syscall
-	li  $13, 0
-	move	$v0, $13
+.data
+str_1: .asciiz "\n"
+.text
+	li    $v0, 4
+	la    $a0, str_1
+	syscall
+	li  $11, 6
+	sw	$11, -92($fp)
+	li  $12, 3
+	mtc1  $12, $f8
+	cvt.s.w  $f8, $f8
+	s.s	$f8, -88($fp)
+	li	$24, 8
+	sub	$sp, $sp, $24
+	jal  test
+	mov.s $f10, $f0
+	li	$24, 8
+	add	$sp, $sp, $24
+	li    $v0, 2
+	mov.s $f12, $f10
+	syscall
+.data
+str_2: .asciiz "\n"
+.text
+	li    $v0, 4
+	la    $a0, str_2
+	syscall
+	li  $13, 6
+	sw	$13, -92($fp)
+	lw  $14, -12($fp)
+	mtc1  $14, $f10
+	cvt.s.w  $f10, $f10
+	s.s	$f10, -88($fp)
+	li	$24, 8
+	sub	$sp, $sp, $24
+	jal  test
+	mov.s $f28, $f0
+	s.s	$f28, -20($fp)
+	li	$24, 8
+	add	$sp, $sp, $24
+	li    $v0, 2
+	l.s	$f28, -20($fp)
+	mov.s  $a0, $f28
+	syscall
+.data
+str_3: .asciiz "\n"
+.text
+	li    $v0, 4
+	la    $a0, str_3
+	syscall
+	li  $12, 6
+	sw	$12, -96($fp)
+	lw  $15, -12($fp)
+	l.s  $f28, -16($fp)
+	s.s	$f28, -24($fp)
+	mtc1  $15, $f28
+	cvt.s.w  $f28, $f28
+	s.s  $f28, -28($fp)
+	l.s	$f28, -28($fp)
+	l.s	$f30, -24($fp)
+	add.s  $f26, $f28, $f30
+	s.s	$f26, -32($fp)
+	lw	$25, -32($fp)
+	s.s	$f25, -104($fp)
+	li	$24, 8
+	sub	$sp, $sp, $24
+	jal  test
+	mov.s $f28, $f0
+	s.s	$f28, -36($fp)
+	li	$24, 8
+	add	$sp, $sp, $24
+	li    $v0, 2
+	l.s	$f28, -36($fp)
+	mov.s  $a0, $f28
+	syscall
+.data
+str_4: .asciiz "\n"
+.text
+	li    $v0, 4
+	la    $a0, str_4
+	syscall
+	li  $16, 0
+	move	$v0, $16
 _end_main:
 # epilogue sequence
 	lw  $8,  64($sp)
@@ -188,6 +222,8 @@ _end_main:
 	syscall
 
 .data
-	_framesize_of_main: .word 900
+	_framesize_of_main: .word 104
 
 .data
+_fp0: .float 0.000000
+

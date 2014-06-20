@@ -428,10 +428,10 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 					else if(currentParamter->type->properties.dataType == FLOAT_TYPE){
 						convert_int_to_float(func_param);
 						if(func_param->place >0)
-							fprintf(output, "\ts.s\t$f%d, %d($sp)\n", func_param->place, ARoffset - FRAME_SIZE - param_num * 4 + param_offset - 4);
+							fprintf(output, "\ts.s\t$f%d, %d($fp)\n", func_param->place, ARoffset - FRAME_SIZE - param_num * 4 + param_offset - 4);
 						else{
 							gen_reg_buffer_code(func_param->place, 25);
-							fprintf(output, "\ts.s\t$f25, %d($sp)\n", ARoffset - FRAME_SIZE - param_num * 4 + param_offset - 4);
+							fprintf(output, "\ts.s\t$f25, %d($fp)\n", ARoffset - FRAME_SIZE - param_num * 4 + param_offset - 4);
 						}
 					}
 					else{
@@ -524,7 +524,9 @@ void gen_assign_stmt(AST_NODE* assign_stmt_node)
 	AST_NODE* left_node = assign_stmt_node->child;
 	AST_NODE* right_node = left_node->rightSibling;
 	gen_expr(right_node);
-	convert_int_to_float(right_node);
+	if(left_node->dataType == FLOAT_TYPE){
+		convert_int_to_float(right_node);
+	}
 	
 	char* var_name = left_node->semantic_value.identifierSemanticValue.identifierName;
 	SymbolTableEntry* entry = left_node->semantic_value.identifierSemanticValue.symbolTableEntry;
