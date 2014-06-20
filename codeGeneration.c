@@ -519,12 +519,20 @@ void gen_for_stmt(AST_NODE* node)
 void gen_return_stmt(AST_NODE* node)
 {
 	printf("IN FUNCTION [gen_return_stmt]\n");
+
+	AST_NODE* current_node = node;
+	while(current_node->nodeType == IDENTIFIER_NODE) {
+		current_node = current_node->parent;
+	}
+	char* funcName = current_node->semantic_value.identifierSemanticValue.identifierName;
+	SymbolTableEntry* functionEntry = retrieveSymbol(funcName);
+	DATA_TYPE returnType = functionEntry->attribute->attr.functionSignature->returnType;
+
 	AST_NODE* relop_expr = node->child;
 	gen_expr(relop_expr);
-	int type = relop_expr->dataType;
 	int reg;
 	
-	if(type == INT_TYPE){
+	if(returnType == INT_TYPE){
 		if (relop_expr->place > 0) {
 			reg = relop_expr->place;
 		} else {
@@ -534,18 +542,19 @@ void gen_return_stmt(AST_NODE* node)
 		fprintf(output, "\tmove\t$v0, $%d\n", reg);
 		free_reg(reg);
 	}
-	else if(type == FLOAT_TYPE){
+	else if(returnType == FLOAT_TYPE){
+		convert_int_to_float(relop_expr);
 		if (relop_expr->place > 0) {
 			reg = relop_expr->place;
 		} else {
 			gen_reg_buffer_code(relop_expr->place, 30);
 			reg = 30;
-	}
+		}
 		fprintf(output, "\tmov.s\t$f0, $f%d\n", reg);
 		free_freg(reg);
 	}
 	else{
-		printf("TYPE: %d\n", type);
+		printf("TYPE: %d\n", returnType);
 		printf("Unhandled return type\n");
 	}
 }

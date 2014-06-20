@@ -60,4 +60,5 @@ void gen_write_call(AST_NODE* expr);
 int get_int_compare_label_no();
 int get_float_compare_label_no();
 void gen_expr(AST_NODE* expr_node);
+void convert_int_to_float(AST_NODE* expr_node);
 #endif

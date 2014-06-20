@@ -95,7 +95,7 @@ void gen_read_call(AST_NODE* func_node)
 			else{
 				func_node->place = ARoffset;
 				ARoffset -= 4;
-				fprintf(output, "\tmove $25, $v0\n", reg_id);
+				fprintf(output, "\tmove $25, $v0\n");
 				save_value_to_fp(25, func_node->place);
 			}
 		}	
@@ -113,7 +113,7 @@ void gen_read_call(AST_NODE* func_node)
 			else{
 				func_node->place = ARoffset;
 				ARoffset -= 4;
-				fprintf(output, "\tmov.s $f28, $f0\n", freg_id);
+				fprintf(output, "\tmov.s $f28, $f0\n");
 				save_value_to_fp(28, func_node->place);
 			}
 			break;
@@ -408,13 +408,16 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 				gen_write_call(func_para_node->child); //把參數的expr node傳進去
 			}
 			else {
+				SymbolTableEntry* functionEntry = retrieveSymbol(func_name);
+				Parameter* currentParamter = functionEntry->attribute->attr.functionSignature->parameterList; //para list point to first paramter
+				
 				AST_NODE* func_param = func_para_node->child;
 				int param_offset = 0;
 				int param_num = func_name_node->semantic_value.identifierSemanticValue.symbolTableEntry->attribute->attr.functionSignature->parametersCount;
 				while(func_param != NULL){
 					gen_expr(func_param);
 					param_offset += 4;
-					if(func_param->dataType == INT_TYPE){
+					if(currentParamter->type->properties.dataType == INT_TYPE){
 						if(func_param->place >0)
 							fprintf(output, "\tsw\t$%d, %d($fp)\n", func_param->place, ARoffset - FRAME_SIZE - param_num * 4 + param_offset - 4);
 						else{
@@ -422,7 +425,8 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 							fprintf(output, "\tsw\t$25, %d($fp)\n", ARoffset - FRAME_SIZE - param_num * 4 + param_offset - 4);
 						}
 					}
-					else if(func_param->dataType == FLOAT_TYPE){
+					else if(currentParamter->type->properties.dataType == FLOAT_TYPE){
+						convert_int_to_float(func_param);
 						if(func_param->place >0)
 							fprintf(output, "\ts.s\t$f%d, %d($sp)\n", func_param->place, ARoffset - FRAME_SIZE - param_num * 4 + param_offset - 4);
 						else{
@@ -435,6 +439,7 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 						printf("Unexpected data type\n");
 					}
 					func_param = func_param->rightSibling;	
+					currentParamter = currentParamter->next;
 				}
 				fprintf(output,	"\tli\t$24, %d\n", param_offset);
 				fprintf(output, "\tsub\t$sp, $sp, $24\n");
