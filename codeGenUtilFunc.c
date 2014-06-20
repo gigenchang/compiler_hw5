@@ -46,7 +46,7 @@ void gen_write_call(AST_NODE* expr)
 	switch(type){
 		case INT_TYPE:
 			fprintf(output, "\tli    $v0, 1\n");
-			if(expr->place > 0)
+			if(expr->place > 0 && expr->place_type != -1)
 				fprintf(output, "\tmove  $a0, $%d\n", expr->place); 
 			else{
 				gen_reg_buffer_code(expr->place, 24);
@@ -57,7 +57,7 @@ void gen_write_call(AST_NODE* expr)
 			break;
 		case FLOAT_TYPE:
 			fprintf(output, "\tli    $v0, 2\n");
-			if(expr->place > 0)
+			if(expr->place > 0 && expr->place_type != -1)
 				fprintf(output, "\tmov.s $f12, $f%d\n", expr->place);
 			else{
 				gen_reg_buffer_code(expr->place, 28);
@@ -94,6 +94,7 @@ void gen_read_call(AST_NODE* func_node)
 			}
 			else{
 				func_node->place = ARoffset;
+				func_node->place_type = -1;
 				ARoffset -= 4;
 				fprintf(output, "\tmove $25, $v0\n");
 				save_value_to_fp(25, func_node->place);
@@ -112,6 +113,7 @@ void gen_read_call(AST_NODE* func_node)
 			}
 			else{
 				func_node->place = ARoffset;
+				func_node->place_type = -1;
 				ARoffset -= 4;
 				fprintf(output, "\tmov.s $f28, $f0\n");
 				save_value_to_fp(28, func_node->place);
@@ -142,6 +144,7 @@ void visit_const(AST_NODE* const_value)
 				}
 				else{
 					const_value->place = ARoffset;
+					const_value->place_type = -1;
 					ARoffset -= 4;
 					fprintf(output, "\tli $24, %d\n", val->const_u.intval);
 					save_value_to_fp(24, const_value->place);
@@ -157,6 +160,7 @@ void visit_const(AST_NODE* const_value)
 				}
 				else{
 					const_value->place = ARoffset;
+					const_value->place_type = -1;
 					ARoffset -= 4;
 					fprintf(output, "\tli.s $f28, %f\n", val->const_u.fval);
 					save_value_to_fp(28, const_value->place);
@@ -198,6 +202,7 @@ void visit_var_ref(AST_NODE* id_node)
 						}
 						else{
 							id_node->place = ARoffset;
+							id_node->place_type = -1;
 							ARoffset -= 4;
 							if (is_global) {
 								fprintf(output, "\tlw  $24, _%s\n", var_name);
@@ -222,6 +227,7 @@ void visit_var_ref(AST_NODE* id_node)
 						}
 						else{
 							id_node->place = ARoffset;
+							id_node->place_type = -1;
 							ARoffset -= 4;
 							if (is_global) {
 								fprintf(output, "\tl.s  $f28, _%s\n", var_name);
@@ -255,7 +261,7 @@ void visit_var_ref(AST_NODE* id_node)
 					gen_expr(current_dimension_node);
 					//TODO load 回 total offset reg(if total_offset_reg == 24)
 					//先加上目前維度的值
-					if(current_dimension_node->place > 0)
+					if(current_dimension_node->place > 0 && current_dimension_node->place_type !=-1)
 						fprintf(output, "\tadd $%d, $%d, $%d\n", total_offset_reg, total_offset_reg, current_dimension_node->place);
 					else{
 						gen_reg_buffer_code(current_dimension_node->place, 25);
@@ -297,6 +303,7 @@ void visit_var_ref(AST_NODE* id_node)
 							}
 							else{
 								id_node->place = ARoffset;
+								id_node->place_type = -1;
 								ARoffset -= 4;
 								if (is_global) {
 									fprintf(output, "\tlw  $25, _%s+%d($%d)\n", var_name, entry->offset, total_offset_reg);
@@ -325,6 +332,7 @@ void visit_var_ref(AST_NODE* id_node)
 							}
 							else{
 								id_node->place = ARoffset;
+								id_node->place_type = -1;
 								ARoffset -= 4;
 								if (is_global) {
 									fprintf(output, "\tl.s   $f30, _%s+%d($%d)\n", var_name, entry->offset, total_offset_reg);
@@ -376,6 +384,7 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 				}
 				else{
 					func_call_stmt_node->place = ARoffset;
+					func_call_stmt_node->place_type = -1;
 					ARoffset -= 4;
 					fprintf(output, "\tjal  %s\n", func_name);
 					fprintf(output, "\tmove $24, $v0\n");
@@ -392,6 +401,7 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 				}
 				else{
 					func_call_stmt_node->place = ARoffset;
+					func_call_stmt_node->place_type = -1;
 					ARoffset -= 4;
 					fprintf(output, "\tjal  %s\n", func_name);
 					fprintf(output, "\tmov.s $f28, $f0\n");
@@ -418,7 +428,7 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 					gen_expr(func_param);
 					param_offset += 4;
 					if(currentParamter->type->properties.dataType == INT_TYPE){
-						if(func_param->place >0)
+						if(func_param->place >0 && func_param->place_type != -1)
 							fprintf(output, "\tsw\t$%d, %d($fp)\n", func_param->place, ARoffset - FRAME_SIZE - param_num * 4 + param_offset - 4);
 						else{
 							gen_reg_buffer_code(func_param->place, 25);
@@ -427,7 +437,7 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 					}
 					else if(currentParamter->type->properties.dataType == FLOAT_TYPE){
 						convert_int_to_float(func_param);
-						if(func_param->place >0)
+						if(func_param->place >0 && func_param->place_type != -1)
 							fprintf(output, "\ts.s\t$f%d, %d($fp)\n", func_param->place, ARoffset - FRAME_SIZE - param_num * 4 + param_offset - 4);
 						else{
 							gen_reg_buffer_code(func_param->place, 25);
@@ -453,6 +463,7 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 					}
 					else{
 						func_call_stmt_node->place = ARoffset;
+						func_call_stmt_node->place_type = -1;
 						ARoffset -= 4;
 						fprintf(output, "\tjal  %s\n", func_name);
 						fprintf(output, "\tmove $24, $v0\n");
@@ -469,6 +480,7 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 					}
 					else{
 						func_call_stmt_node->place = ARoffset;
+						func_call_stmt_node->place_type = -1;
 						ARoffset -= 4;
 						fprintf(output, "\tjal  %s\n", func_name);
 						fprintf(output, "\tmov.s $f28, $f0\n");
@@ -514,6 +526,7 @@ void convert_int_to_float(AST_NODE* expr_node)
 			fprintf(output, "\tcvt.s.w  $f28, $f28\n");          //so need convert
 			free_reg(expr_node->place);	
 			expr_node->place = ARoffset;
+			expr_node->place_type = -1;
 			fprintf(output, "\ts.s  $f28, %d($fp)\n", expr_node->place);
 			ARoffset -= 4;
 		}
@@ -540,14 +553,14 @@ void gen_assign_stmt(AST_NODE* assign_stmt_node)
 			switch (left_node->dataType) {
 				case INT_TYPE:
 					if (is_global) {
-						if(right_node->place > 0)
+						if(right_node->place > 0 && right_node->place_type != -1)
 							fprintf(output, "\tsw  $%d, _%s\n", right_node->place, var_name);
 						else{
 							gen_reg_buffer_code(right_node->place, 24);
 							fprintf(output, "\tsw  $24, _%s\n", var_name);
 						}
 					} else {
-						if(right_node->place > 0)
+						if(right_node->place > 0 && right_node->place_type != -1)
 							fprintf(output, "\tsw  $%d, %d($fp)\n",  right_node->place, entry->offset);
 						else{
 							gen_reg_buffer_code(right_node->place, 24);
@@ -558,14 +571,14 @@ void gen_assign_stmt(AST_NODE* assign_stmt_node)
 					break;
 			    case FLOAT_TYPE:
 					if (is_global) {
-						if(right_node->place > 0)
+						if(right_node->place > 0 && right_node->place_type != -1)
 							fprintf(output, "\ts.s  $f%d, _%s\n", right_node->place, var_name);
 						else{
 							gen_reg_buffer_code(right_node->place, 28);
 							fprintf(output, "\ts.s  $f28, _%s\n", var_name);
 						}
 					} else {
-						if(right_node->place > 0)
+						if(right_node->place > 0 && right_node->place_type != -1)
 							fprintf(output, "\ts.s  $f%d, %d($fp)\n",  right_node->place, entry->offset);
 						else{
 							gen_reg_buffer_code(right_node->place, 28);
@@ -597,7 +610,7 @@ void gen_assign_stmt(AST_NODE* assign_stmt_node)
 					//TODO 然後在這裡把它load回去
 					
 					//先加上目前維度的值
-					if(current_dimension_node->place > 0)
+					if(current_dimension_node->place > 0 && current_dimension_node->place_type != -1)
 						fprintf(output, "\tadd $%d, $%d, $%d\n", total_offset_reg, total_offset_reg, current_dimension_node->place);
 					else{
 						gen_reg_buffer_code(current_dimension_node->place, 25);
@@ -624,14 +637,14 @@ void gen_assign_stmt(AST_NODE* assign_stmt_node)
 				switch (left_node->dataType) {
 					case INT_TYPE:
 						if (is_global) {
-							if(right_node->place > 0)
+							if(right_node->place > 0 && right_node->place_type != -1)
 								fprintf(output, "\tsw  $%d, _%s+%d($%d)\n", right_node->place, var_name, entry->offset, total_offset_reg);
 							else{
 								gen_reg_buffer_code(right_node->place, 25);
 								fprintf(output, "\tsw  $25, _%s+%d($%d)\n", var_name, entry->offset, total_offset_reg);
 							}
 						} else {
-							if(right_node->place > 0){
+							if(right_node->place > 0 && right_node->place_type != -1){
 								fprintf(output, "\tadd $%d, $%d, $fp\n",  total_offset_reg, total_offset_reg);
 								fprintf(output, "\tadd $%d, $%d, %d\n",  total_offset_reg, total_offset_reg, entry->offset);
 								fprintf(output, "\tsw  $%d, ($%d)\n",  right_node->place, total_offset_reg);
@@ -648,14 +661,14 @@ void gen_assign_stmt(AST_NODE* assign_stmt_node)
 						break;
 					case FLOAT_TYPE:
 						if (is_global) {
-							if(right_node->place > 0)
+							if(right_node->place > 0 && right_node->place_type != -1)
 								fprintf(output, "\ts.s   $f%d, _%s+%d($%d)\n", right_node->place, var_name, entry->offset, total_offset_reg);
 							else{
 								gen_reg_buffer_code(right_node->place, 30);
 								fprintf(output, "\ts.s   $f30, _%s+%d($%d)\n", var_name, entry->offset, total_offset_reg);
 							}
 						} else {
-							if(right_node->place > 0){
+							if(right_node->place > 0 && right_node->place_type != -1){
 								fprintf(output, "\tadd  $%d, $%d, $fp\n",  total_offset_reg, total_offset_reg);
 								fprintf(output, "\tadd  $%d, $%d, %d\n",  total_offset_reg, total_offset_reg, entry->offset);
 								fprintf(output, "\ts.s  $f%d, ($%d)\n",  right_node->place, total_offset_reg);
@@ -804,6 +817,7 @@ void visit_expr(AST_NODE* expr_node)
 					//}
 					if (reg_id == 24) {
 						expr_node->place = ARoffset;
+						expr_node->place_type = -1;
 						save_value_to_fp(24, expr_node->place);
 						ARoffset -= 4;
 					}
@@ -843,6 +857,7 @@ void visit_expr(AST_NODE* expr_node)
 					//}
 					if (reg_id == 24) {
 						expr_node->place = ARoffset;
+						expr_node->place_type = -1;
 						save_value_to_fp(24, expr_node->place);
 						ARoffset -= 4;
 					}
@@ -928,6 +943,7 @@ void visit_expr(AST_NODE* expr_node)
 									//}
 									if (reg_id == 24) {
 										expr_node->place = ARoffset;
+										expr_node->place_type = -1;
 										save_value_to_fp(24, expr_node->place);
 										ARoffset -= 4;
 									}
@@ -959,6 +975,7 @@ void visit_expr(AST_NODE* expr_node)
 									//}
 									if (reg_id == 24) {
 										expr_node->place = ARoffset;
+										expr_node->place_type = -1;
 										save_value_to_fp(24, expr_node->place);
 										ARoffset -= 4;
 									}
@@ -988,6 +1005,7 @@ void visit_expr(AST_NODE* expr_node)
 									//}
 									if (reg_id == 24) {
 										expr_node->place = ARoffset;
+										expr_node->place_type = -1;
 										save_value_to_fp(24, expr_node->place);
 										ARoffset -= 4;
 									}
@@ -1018,6 +1036,7 @@ void visit_expr(AST_NODE* expr_node)
 									//}
 									if (reg_id == 24) {
 										expr_node->place = ARoffset;
+										expr_node->place_type = -1;
 										save_value_to_fp(24, expr_node->place);
 										ARoffset -= 4;
 									}
@@ -1048,6 +1067,7 @@ void visit_expr(AST_NODE* expr_node)
 									//}
 									if (reg_id == 24) {
 										expr_node->place = ARoffset;
+										expr_node->place_type = -1;
 										save_value_to_fp(24, expr_node->place);
 										ARoffset -= 4;
 									}
@@ -1078,6 +1098,7 @@ void visit_expr(AST_NODE* expr_node)
 									//}
 									if (reg_id == 24) {
 										expr_node->place = ARoffset;
+										expr_node->place_type = -1;
 										save_value_to_fp(24, expr_node->place);
 										ARoffset -= 4;
 									}
@@ -1110,6 +1131,7 @@ void visit_expr(AST_NODE* expr_node)
 									//}
 									if (int_reg_id == 24) {
 										expr_node->place = ARoffset;
+										expr_node->place_type = -1;
 										save_value_to_fp(24, expr_node->place);
 										ARoffset -= 4;
 									}
@@ -1141,6 +1163,7 @@ void visit_expr(AST_NODE* expr_node)
 									//}
 									if (int_reg_id == 24) {
 										expr_node->place = ARoffset;
+										expr_node->place_type = -1;
 										save_value_to_fp(24, expr_node->place);
 										ARoffset -= 4;
 									}
@@ -1152,6 +1175,7 @@ void visit_expr(AST_NODE* expr_node)
 					//}
 					if (reg_id == 26) {
 						expr_node->place = ARoffset;
+						expr_node->place_type = -1;
 						save_value_to_fp(26, expr_node->place);
 						ARoffset -= 4;
 					}
@@ -1203,6 +1227,7 @@ void visit_expr(AST_NODE* expr_node)
 									//}
 									if (reg_id == 24) {
 										expr_node->place = ARoffset;
+										expr_node->place_type = -1;
 										save_value_to_fp(24, expr_node->place);
 										ARoffset -= 4;
 									}
@@ -1215,6 +1240,7 @@ void visit_expr(AST_NODE* expr_node)
 					//}
 					if (reg_id == 26) {
 						expr_node->place = ARoffset;
+						expr_node->place_type = -1;
 						save_value_to_fp(26, expr_node->place);
 						ARoffset -= 4;
 					}

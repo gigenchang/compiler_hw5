@@ -532,7 +532,7 @@ void gen_return_stmt(AST_NODE* node)
 	int reg;
 	
 	if(returnType == INT_TYPE){
-		if (relop_expr->place > 0) {
+		if (relop_expr->place > 0 && relop_expr->place_type != -1) {
 			reg = relop_expr->place;
 		} else {
 			gen_reg_buffer_code(relop_expr->place, 24);
@@ -543,7 +543,7 @@ void gen_return_stmt(AST_NODE* node)
 	}
 	else if(returnType == FLOAT_TYPE){
 		convert_int_to_float(relop_expr);
-		if (relop_expr->place > 0) {
+		if (relop_expr->place > 0 && relop_expr->place_type != -1) {
 			reg = relop_expr->place;
 		} else {
 			gen_reg_buffer_code(relop_expr->place, 30);

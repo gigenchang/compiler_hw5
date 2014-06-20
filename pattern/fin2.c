@@ -2,8 +2,9 @@ float test(int aa, float bb)
 {
 	float cc = 4.0;
 	float dd;
-	dd = aa || bb;
-	write(cc);
+	dd = aa + bb;
+	write(4.0);
+	write("\n");
 	return dd;
 }
 
