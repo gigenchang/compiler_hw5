@@ -511,7 +511,7 @@ void convert_int_to_float(AST_NODE* expr_node)
 			fprintf(output, "\tmtc1  $%d, $f28\n", expr_node->place); //copy left to freg verbatimly
 			fprintf(output, "\tcvt.s.w  $f28, $f28\n");          //so need convert
 			expr_node->place = ARoffset;
-			fprintf(output, "\ts.s  $f28, %d(fp)\n", expr_node->place);
+			fprintf(output, "\ts.s  $f28, %d($fp)\n", expr_node->place);
 			ARoffset -= 4;
 		}
 	}

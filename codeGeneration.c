@@ -519,12 +519,11 @@ void gen_for_stmt(AST_NODE* node)
 void gen_return_stmt(AST_NODE* node)
 {
 	printf("IN FUNCTION [gen_return_stmt]\n");
-
 	AST_NODE* current_node = node;
-	while(current_node->nodeType == IDENTIFIER_NODE) {
+	while(current_node->nodeType != DECLARATION_NODE) {
 		current_node = current_node->parent;
 	}
-	char* funcName = current_node->semantic_value.identifierSemanticValue.identifierName;
+	char* funcName = current_node->child->rightSibling->semantic_value.identifierSemanticValue.identifierName;
 	SymbolTableEntry* functionEntry = retrieveSymbol(funcName);
 	DATA_TYPE returnType = functionEntry->attribute->attr.functionSignature->returnType;
 
