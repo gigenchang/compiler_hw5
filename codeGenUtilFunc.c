@@ -61,7 +61,7 @@ void gen_write_call(AST_NODE* expr)
 				fprintf(output, "\tmov.s $f12, $f%d\n", expr->place);
 			else{
 				gen_reg_buffer_code(expr->place, 28);
-				fprintf(output, "\tmov.s  $a0, $f28\n"); 
+				fprintf(output, "\tmov.s $f12, $f28\n"); 
 			}
 			fprintf(output, "\tsyscall\n");
 			free_freg(expr->place);

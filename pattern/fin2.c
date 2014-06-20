@@ -1,9 +1,9 @@
+
 float test(int aa, float bb)
 {
-	float cc = 4.0;
 	float dd;
 	dd = aa + bb;
-	write(4.0);
+	write(aa);
 	write("\n");
 	return dd;
 }
@@ -11,7 +11,8 @@ float test(int aa, float bb)
 int main()
 {
 	int c = 3;
-	float d = 5;
+	float d = 5.0;
+	test(6,3.0);
 	write(test(6, 3.0));
 	write("\n");
 	write(test(6,3));
