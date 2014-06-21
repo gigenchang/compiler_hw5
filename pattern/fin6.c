@@ -1,17 +1,16 @@
 float floatfunc(int para1, float para2)
 {
-	int a[3][4]; 
 	float b[3][3];
-	a[2][1] = 6;
 	b[1][2] = para1 + para2;
-	return a[2][1] + b[1][2];
+	return b[1][2];
 }
+
 int main()
 {
+	float a[3][4];
 	int c = 6;
-	write(floatfunc(4, 15));
-	write("\n");
-	write(floatfunc(4, floatfunc(3, c)));
+	a[1][3] = 7;
+	write(floatfunc(c, a[1][3]));
 	write("\n");
 	return 0;
 }

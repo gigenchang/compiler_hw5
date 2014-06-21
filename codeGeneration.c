@@ -171,7 +171,7 @@ void gen_var_decl(AST_NODE *nodePtr)
 void gen_func_type_empty(AST_NODE *func_head)
 {	
 	printf("IN FUNCTION [gen_func_type_empty]\n");
-	int ARoffset = -4;
+	ARoffset = -4;
 	AST_NODE *nodePtr = func_head->child->rightSibling;
 	char* func_name = nodePtr->semantic_value.identifierSemanticValue.identifierName;
 //	Are these needed ?
@@ -195,6 +195,7 @@ void gen_func_type_empty(AST_NODE *func_head)
 
 void gen_param(AST_NODE* param_node)
 {
+	printf("IN FUNCTION [gen_block]\n");
 	int param_offset = 8;
 	AST_NODE* func_param = param_node->child;
 	while(func_param != NULL){
@@ -245,6 +246,7 @@ void gen_head(char* name)
 void gen_stmt(AST_NODE* stmtNode)
 {
 	printf("IN FUNCTION [gen_stmt]\n");
+	printf("ARoffset:%d\n", ARoffset);
 	if(stmtNode->nodeType == NUL_NODE){
 		return;
 	}
@@ -282,7 +284,7 @@ void gen_decl(AST_NODE* ID_node)
 	printf("IN FUNCTION [gen_decl]\n");
 	//for normal id的宣告, 請確保傳入的一定是normal id
 	SymbolTableEntry* entry = ID_node->semantic_value.identifierSemanticValue.symbolTableEntry;
-	int size = SIZE;
+	//int size = SIZE;
 	
 	if(entry->nestingLevel == 0){ // global variable
 		if(entry->attribute->attr.typeDescriptor->properties.dataType == INT_TYPE){
@@ -293,8 +295,7 @@ void gen_decl(AST_NODE* ID_node)
 		}
 	}
 	else{						// local variable
-		printf("ARoffset:%d\n", ARoffset);
-		ARoffset -= (size - 4);	
+	//	ARoffset -= (size - 4);	
 		entry->offset = ARoffset;
 		ARoffset -= 4;
 	}
@@ -363,6 +364,7 @@ void gen_init_decl(AST_NODE* ID_node)
 			fprintf(output, "\ts.s\t$f%d, %d($fp)\n", freg, entry->offset);
 			free_freg(freg);
 			buffer_counter++;
+			float_counter++;
 		}
 	}
 	else{

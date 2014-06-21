@@ -392,7 +392,6 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 				}
 			}
 			else if(func_call_stmt_node->dataType == FLOAT_TYPE){
-				printf("LLLL\n");
 				int freg_id = get_freg();
 				if(freg_id != -1) {
 					func_call_stmt_node->place = freg_id;	
@@ -429,19 +428,19 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 					param_offset += 4;
 					if(currentParamter->type->properties.dataType == INT_TYPE){
 						if(func_param->place >0 && func_param->place_type != -1)
-							fprintf(output, "\tsw\t$%d, %d($fp)\n", func_param->place, ARoffset - FRAME_SIZE - param_num * 4 + param_offset - 4);
+							fprintf(output, "\tsw\t$%d, %d($sp)\n", func_param->place, - param_num * 4 + param_offset);
 						else{
 							gen_reg_buffer_code(func_param->place, 25);
-							fprintf(output, "\tsw\t$25, %d($fp)\n", ARoffset - FRAME_SIZE - param_num * 4 + param_offset - 4);
+							fprintf(output, "\tsw\t$25, %d($sp)\n",  - param_num * 4 + param_offset);
 						}
 					}
 					else if(currentParamter->type->properties.dataType == FLOAT_TYPE){
 						convert_int_to_float(func_param);
 						if(func_param->place >0 && func_param->place_type != -1)
-							fprintf(output, "\ts.s\t$f%d, %d($fp)\n", func_param->place, ARoffset - FRAME_SIZE - param_num * 4 + param_offset - 4);
+							fprintf(output, "\ts.s\t$f%d, %d($sp)\n", func_param->place, - param_num * 4 + param_offset);
 						else{
 							gen_reg_buffer_code(func_param->place, 25);
-							fprintf(output, "\ts.s\t$f25, %d($fp)\n", ARoffset - FRAME_SIZE - param_num * 4 + param_offset - 4);
+							fprintf(output, "\ts.s\t$f25, %d($sp)\n", - param_num * 4 + param_offset);
 						}
 					}
 					else{
@@ -471,7 +470,6 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 					}
 				}
 				else if(func_call_stmt_node->dataType == FLOAT_TYPE){
-					printf("LLLL\n");
 					int freg_id = get_freg();
 					if(freg_id != -1) {
 						func_call_stmt_node->place = freg_id;	
