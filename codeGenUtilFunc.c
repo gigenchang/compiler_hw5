@@ -427,6 +427,7 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 					gen_expr(func_param);
 					param_offset += 4;
 					if(currentParamter->type->properties.dataType == INT_TYPE){
+						convert_float_to_int(func_param);
 						if(func_param->place >0 && func_param->place_type != -1)
 							fprintf(output, "\tsw\t$%d, %d($sp)\n", func_param->place, - param_num * 4 + param_offset);
 						else{
@@ -531,6 +532,28 @@ void convert_int_to_float(AST_NODE* expr_node)
 	}
 }
 
+void convert_float_to_int(AST_NODE* expr_node)
+{
+	if (expr_node->dataType == FLOAT_TYPE) {
+		turn_offset_into_reg(expr_node, 30);
+
+		int reg = get_reg();
+		if (reg != -1) {
+			fprintf(output, "\tcvt.w.s  $f%d, $f%d\n", expr_node->place, expr_node->place); // 轉成int, 但還是存在float register
+			fprintf(output, "\tmfc1  $%d, $f%d\n", reg, expr_node->place); //copy freg to reg verbatimly($f->$reg, $f+1->$reg+1)
+			free_freg(expr_node->place);	
+			expr_node->place = reg;
+		} else {		
+			fprintf(output, "\tcvt.w.s  $f%d, $f%d\n", expr_node->place, expr_node->place);          //so need convert
+			fprintf(output, "\tmfc1  $25, $f%d\n", expr_node->place); //copy freg to reg verbatimly
+			free_freg(expr_node->place);
+			expr_node->place = ARoffset;
+			expr_node->place_type = -1;
+			fprintf(output, "\ts.s  $25, %d($fp)\n", expr_node->place);
+			ARoffset -= 4;
+		}
+	}
+}
 
 void gen_assign_stmt(AST_NODE* assign_stmt_node)
 {
@@ -540,6 +563,11 @@ void gen_assign_stmt(AST_NODE* assign_stmt_node)
 	gen_expr(right_node);
 	if(left_node->dataType == FLOAT_TYPE){
 		convert_int_to_float(right_node);
+	}
+	
+	if(left_node->dataType == INT_TYPE){
+		printf("???\n");
+		convert_float_to_int(right_node);
 	}
 	
 	char* var_name = left_node->semantic_value.identifierSemanticValue.identifierName;

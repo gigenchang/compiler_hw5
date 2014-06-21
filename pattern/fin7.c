@@ -1,6 +1,6 @@
 int main()
 {
-	float f = 6;
+	int f = 6.3;
 	write(f);
 	return 0;
 }

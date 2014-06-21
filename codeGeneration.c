@@ -330,7 +330,12 @@ void gen_init_decl(AST_NODE* ID_node)
 	CON_Type* value = const_value->semantic_value.const1;
 	if(entry->attribute->attr.typeDescriptor->properties.dataType == INT_TYPE){
 		if(entry->nestingLevel == 0){
-			fprintf(output, "_%s: .word %d\n", ID_node->semantic_value.identifierSemanticValue.identifierName, value->const_u.intval);
+			if (value->const_type == INTEGERC) {
+				fprintf(output, "_%s: .word %d\n", ID_node->semantic_value.identifierSemanticValue.identifierName, value->const_u.intval);
+			} else if(value->const_type == FLOATC) {
+				//取巧一下
+				fprintf(output, "_%s: .word %d\n", ID_node->semantic_value.identifierSemanticValue.identifierName, (int)value->const_u.fval);
+			}
 		}
 		else{
 			int reg = get_reg();
@@ -339,15 +344,22 @@ void gen_init_decl(AST_NODE* ID_node)
 			}
 			entry->offset = ARoffset;
 			ARoffset -= 4;
-			fprintf(output, "\tli\t$%d, %d\n", reg, value->const_u.intval);
+			if (value->const_type == INTEGERC) {
+				fprintf(output, "\tli\t$%d, %d\n", reg, value->const_u.intval);
+			} else if(value->const_type == FLOATC) {
+				fprintf(output, "\tli\t$%d, %d\n", reg, (int)value->const_u.fval);
+			}
 			fprintf(output, "\tsw\t$%d, %d($fp)\n", reg, entry->offset);
 			free_reg(reg);
 		}
 	}
 	else if(entry->attribute->attr.typeDescriptor->properties.dataType == FLOAT_TYPE){
-		printf("lalalalalalallala\n");
 		if(entry->nestingLevel == 0){
-			fprintf(output, "_%s: .float %f\n", ID_node->semantic_value.identifierSemanticValue.identifierName, value->const_u.fval);
+			if (value->const_type == INTEGERC) { //取巧了一下
+				fprintf(output, "_%s: .float %d.0\n", ID_node->semantic_value.identifierSemanticValue.identifierName, value->const_u.intval);
+			} else if(value->const_type == FLOATC) {
+				fprintf(output, "_%s: .float %f\n", ID_node->semantic_value.identifierSemanticValue.identifierName, value->const_u.fval);
+			}
 		}
 		else{
 			int freg = get_freg();
@@ -538,6 +550,7 @@ void gen_return_stmt(AST_NODE* node)
 	int reg;
 	
 	if(returnType == INT_TYPE){
+		convert_float_to_int(relop_expr);
 		if (relop_expr->place > 0 && relop_expr->place_type != -1) {
 			reg = relop_expr->place;
 		} else {
