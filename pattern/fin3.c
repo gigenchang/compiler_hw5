@@ -8,10 +8,7 @@ float floatfunc(int para1, float para2)
 }
 int main()
 {
-	int c = 6;
-	write(floatfunc(4, 15));
-	write("\n");
-	write(floatfunc(4, floatfunc(3, c)));
+	write(floatfunc(4, floatfunc(3, 6)));
 	write("\n");
 	return 0;
 }

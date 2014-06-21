@@ -24,6 +24,18 @@ floatfunc:
 	s.s  $f16, 8($sp)
 	s.s  $f18, 4($sp)
 _begin_floatfunc:
+	li  $8, 6
+	li  $9, 0
+	li  $10, 2
+	add $9, $9, $10
+	li  $25, 4
+	mul $9, $9, $25
+	li  $11, 1
+	add $9, $9, $11
+	mul $9, $9, 4
+	add $9, $9, $fp
+	add $9, $9, -48
+	sw  $8, ($9)
 	lw  $8, 8($fp)
 	l.s  $f6, 12($fp)
 	mtc1  $8, $f8
@@ -34,23 +46,37 @@ _begin_floatfunc:
 	add $8, $8, $9
 	li  $25, 3
 	mul $8, $8, $25
-	li  $10, 2
-	add $8, $8, $10
+	li  $11, 2
+	add $8, $8, $11
 	mul $8, $8, 4
 	add  $8, $8, $fp
-	add  $8, $8, -36
+	add  $8, $8, -84
 	s.s  $f4, ($8)
 	li  $8,  0
-	li  $10, 1
-	add $8, $8, $10
-	li  $10, 3
-	mul $8, $8, $10
-	li  $10, 2
-	add $8, $8, $10
+	li  $11, 2
+	add $8, $8, $11
+	li  $11, 4
+	mul $8, $8, $11
+	li  $11, 1
+	add $8, $8, $11
+	mul $8, $8, 4
+	add $8, $8, $fp
+	add $8, $8, -48
+	lw  $11, ($8)
+	li  $8,  0
+	li  $12, 1
+	add $8, $8, $12
+	li  $12, 3
+	mul $8, $8, $12
+	li  $12, 2
+	add $8, $8, $12
 	mul $8, $8, 4
 	add  $8, $8, $fp
-	add  $8, $8, -36
-	l.s  $f4, ($8)
+	add  $8, $8, -84
+	l.s  $f6, ($8)
+	mtc1  $11, $f8
+	cvt.s.w  $f8, $f8
+	add.s  $f4, $f8, $f6
 	mov.s	$f0, $f4
 _end_floatfunc:
 # epilogue sequence
@@ -76,7 +102,7 @@ _end_floatfunc:
 	jr  $ra
 
 .data
-	_framesize_of_floatfunc: .word 104
+	_framesize_of_floatfunc: .word 152
 
 .text
 main:
@@ -104,35 +130,13 @@ main:
 	s.s  $f16, 8($sp)
 	s.s  $f18, 4($sp)
 _begin_main:
-	li	$8, 6
-	sw	$8, -52($fp)
-	li  $8, 7
+	li  $8, 4
+	sw	$8, -4($sp)
+	li  $8, 3
+	sw	$8, -4($sp)
+	li  $8, 6
 	mtc1  $8, $f4
 	cvt.s.w  $f4, $f4
-	li  $8, 0
-	li  $10, 1
-	add $8, $8, $10
-	li  $25, 4
-	mul $8, $8, $25
-	li  $11, 3
-	add $8, $8, $11
-	mul $8, $8, 4
-	add  $8, $8, $fp
-	add  $8, $8, -48
-	s.s  $f4, ($8)
-	lw  $8, -52($fp)
-	sw	$8, -4($sp)
-	li  $8,  0
-	li  $11, 1
-	add $8, $8, $11
-	li  $11, 4
-	mul $8, $8, $11
-	li  $11, 3
-	add $8, $8, $11
-	mul $8, $8, 4
-	add  $8, $8, $fp
-	add  $8, $8, -48
-	l.s  $f4, ($8)
 	s.s	$f4, 0($sp)
 	li	$24, 8
 	sub	$sp, $sp, $24
@@ -140,8 +144,15 @@ _begin_main:
 	mov.s $f6, $f0
 	li	$24, 8
 	add	$sp, $sp, $24
+	s.s	$f6, 0($sp)
+	li	$24, 8
+	sub	$sp, $sp, $24
+	jal  floatfunc
+	mov.s $f8, $f0
+	li	$24, 8
+	add	$sp, $sp, $24
 	li    $v0, 2
-	mov.s $f12, $f6
+	mov.s $f12, $f8
 	syscall
 .data
 str_1: .asciiz "\n"
@@ -176,6 +187,6 @@ _end_main:
 	syscall
 
 .data
-	_framesize_of_main: .word 120
+	_framesize_of_main: .word 68
 
 .data

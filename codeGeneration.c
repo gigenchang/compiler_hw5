@@ -357,7 +357,11 @@ void gen_init_decl(AST_NODE* ID_node)
 			if(buffer_counter == BUFFER_SIZE){
 				printf("Buffer Boundary Reached\n");
 			}
-			sprintf(label_buffer[float_counter], "_fp%d: .float %f", float_counter, value->const_u.fval);
+			if (value->const_type == INTEGERC) { //取巧了一下
+				sprintf(label_buffer[float_counter], "_fp%d: .float %d.0", float_counter, value->const_u.intval);
+			} else if(value->const_type == FLOATC) {
+				sprintf(label_buffer[float_counter], "_fp%d: .float %f", float_counter, value->const_u.fval);
+			}
 			fprintf(output, "\tl.s\t$f%d, _fp%d\n", freg, float_counter);
 			entry->offset = ARoffset;
 			ARoffset -= 4;
