@@ -9,6 +9,7 @@ float floatfunc(int para1, float para2)
 int main()
 {
 	write(floatfunc(4, floatfunc(3, 6)));
+	write(floatfunc(4, 15));
 	write("\n");
 	return 0;
 }
