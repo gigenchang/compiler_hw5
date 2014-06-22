@@ -423,25 +423,27 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 				AST_NODE* func_param = func_para_node->child;
 				int param_offset = 0;
 				int param_num = func_name_node->semantic_value.identifierSemanticValue.symbolTableEntry->attribute->attr.functionSignature->parametersCount;
+				fprintf(output,	"\tli\t$24, %d\n", param_num * 4);
+				fprintf(output, "\tsub\t$sp, $sp, $24\n");
 				while(func_param != NULL){
 					gen_expr(func_param);
 					param_offset += 4;
 					if(currentParamter->type->properties.dataType == INT_TYPE){
 						convert_float_to_int(func_param);
 						if(func_param->place >0 && func_param->place_type != -1)
-							fprintf(output, "\tsw\t$%d, %d($sp)\n", func_param->place, - param_num * 4 + param_offset);
+							fprintf(output, "\tsw\t$%d, %d($sp)\n", func_param->place, param_offset);
 						else{
 							gen_reg_buffer_code(func_param->place, 25);
-							fprintf(output, "\tsw\t$25, %d($sp)\n",  - param_num * 4 + param_offset);
+							fprintf(output, "\tsw\t$25, %d($sp)\n", param_offset);
 						}
 					}
 					else if(currentParamter->type->properties.dataType == FLOAT_TYPE){
 						convert_int_to_float(func_param);
 						if(func_param->place >0 && func_param->place_type != -1)
-							fprintf(output, "\ts.s\t$f%d, %d($sp)\n", func_param->place, - param_num * 4 + param_offset);
+							fprintf(output, "\ts.s\t$f%d, %d($sp)\n", func_param->place, param_offset);
 						else{
 							gen_reg_buffer_code(func_param->place, 25);
-							fprintf(output, "\ts.s\t$f25, %d($sp)\n", - param_num * 4 + param_offset);
+							fprintf(output, "\ts.s\t$f25, %d($sp)\n", param_offset);
 						}
 					}
 					else{
@@ -452,8 +454,6 @@ void visit_function_call(AST_NODE* func_call_stmt_node)
 					func_param = func_param->rightSibling;	
 					currentParamter = currentParamter->next;
 				}
-				fprintf(output,	"\tli\t$24, %d\n", param_offset);
-				fprintf(output, "\tsub\t$sp, $sp, $24\n");
 				if(func_call_stmt_node->dataType == INT_TYPE){
 					int reg_id = get_reg();
 					if(reg_id != -1) {

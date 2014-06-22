@@ -82,28 +82,28 @@ main:
 _begin_main:
 	l.s	$f4, _fp0
 	s.s	$f4, -4($fp)
+	li	$24, 4
+	sub	$sp, $sp, $24
 	li.s  $f4, 3.100000
 	cvt.w.s  $f4, $f4
 	mfc1  $8, $f4
-	sw	$8, 0($sp)
-	li	$24, 4
-	sub	$sp, $sp, $24
+	sw	$8, 4($sp)
 	jal  f
 	li	$24, 4
 	add	$sp, $sp, $24
+	li	$24, 4
+	sub	$sp, $sp, $24
 	l.s  $f4, -4($fp)
 	cvt.w.s  $f4, $f4
 	mfc1  $8, $f4
-	sw	$8, 0($sp)
-	li	$24, 4
-	sub	$sp, $sp, $24
+	sw	$8, 4($sp)
 	jal  f
 	li	$24, 4
 	add	$sp, $sp, $24
-	li  $8, 2
-	sw	$8, 0($sp)
 	li	$24, 4
 	sub	$sp, $sp, $24
+	li  $8, 2
+	sw	$8, 4($sp)
 	jal  f
 	li	$24, 4
 	add	$sp, $sp, $24
